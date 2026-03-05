@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 import sqlite3
 from ..database import get_db
 from ..models import TransactionCreate
+from ..services.holding_service import apply_transaction
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -44,20 +45,41 @@ def list_transactions(
 def create_transaction(
     tx: TransactionCreate, db: sqlite3.Connection = Depends(get_db)
 ):
-    cursor = db.execute(
-        "INSERT INTO transactions (fund_code, platform, tx_type, tx_date, amount, shares, nav_at_tx, fee, note) "
-        "VALUES (?,?,?,?,?,?,?,?,?)",
-        (
-            tx.fund_code,
-            tx.platform,
-            tx.tx_type,
-            tx.tx_date,
-            tx.amount,
-            tx.shares,
-            tx.nav_at_tx,
-            tx.fee,
-            tx.note,
-        ),
-    )
-    db.commit()
-    return {"tx_id": cursor.lastrowid, "message": "交易记录创建成功"}
+    # 验证基金代码存在
+    fund = db.execute(
+        "SELECT fund_code FROM fund_info WHERE fund_code=?", (tx.fund_code,)
+    ).fetchone()
+    if not fund:
+        raise HTTPException(status_code=400, detail=f"基金代码 {tx.fund_code} 不存在")
+
+    try:
+        # 插入交易记录
+        cursor = db.execute(
+            "INSERT INTO transactions "
+            "(fund_code, platform, tx_type, tx_date, amount, shares, nav_at_tx, fee, note) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                tx.fund_code,
+                tx.platform,
+                tx.tx_type,
+                tx.tx_date,
+                tx.amount,
+                tx.shares,
+                tx.nav_at_tx,
+                tx.fee,
+                tx.note,
+            ),
+        )
+
+        # 联动更新 my_holdings
+        if tx.tx_type in ("买入", "定投", "卖出") and tx.shares and tx.shares > 0:
+            apply_transaction(
+                db, tx.tx_type, tx.fund_code, tx.platform,
+                tx.amount or 0, tx.shares, tx.nav_at_tx,
+            )
+
+        db.commit()
+        return {"tx_id": cursor.lastrowid, "message": "交易记录创建成功，持仓已更新"}
+    except Exception as e:
+        db.execute("ROLLBACK")
+        raise HTTPException(status_code=500, detail=f"交易处理失败: {str(e)}")

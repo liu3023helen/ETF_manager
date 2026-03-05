@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 import sqlite3
 from ..database import get_db
 
@@ -62,3 +62,31 @@ def list_holdings(platform: str = None, db: sqlite3.Connection = Depends(get_db)
             item["current_value"] = round(shares * cost_price, 2)
         results.append(item)
     return results
+
+
+@router.get("/{holding_id}")
+def get_holding(holding_id: int, db: sqlite3.Connection = Depends(get_db)):
+    row = db.execute(
+        "SELECT h.*, f.fund_name AS fi_fund_name, f.fund_category, f.risk_level "
+        "FROM my_holdings h "
+        "LEFT JOIN fund_info f ON h.fund_code = f.fund_code "
+        "WHERE h.holding_id=?",
+        (holding_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="持仓记录不存在")
+    item = dict(row)
+    item["fund_name"] = item.pop("fi_fund_name", None) or item.get("fund_name")
+    return item
+
+
+@router.delete("/{holding_id}")
+def delete_holding(holding_id: int, db: sqlite3.Connection = Depends(get_db)):
+    row = db.execute(
+        "SELECT holding_id FROM my_holdings WHERE holding_id=?", (holding_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="持仓记录不存在")
+    db.execute("DELETE FROM my_holdings WHERE holding_id=?", (holding_id,))
+    reindex_holdings(db)
+    return {"message": "持仓记录已删除"}
