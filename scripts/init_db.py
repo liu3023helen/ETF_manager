@@ -5,14 +5,15 @@ ETF管理系统 - 数据库初始化脚本
 """
 
 import sqlite3
+import sys
 import os
 
-DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-DB_PATH = os.path.join(DB_DIR, "etf_manager.db")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DATA_DIR, DB_PATH
 
 
 def init_database():
-    os.makedirs(DB_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -38,7 +39,8 @@ def init_database():
         return_3y       TEXT,
         return_since_inception TEXT,
         created_at      TEXT DEFAULT (datetime('now', 'localtime')),
-        updated_at      TEXT DEFAULT (datetime('now', 'localtime'))
+        updated_at      TEXT DEFAULT (datetime('now', 'localtime')),
+        inception_date  TEXT
     );
     """)
 
@@ -49,15 +51,13 @@ def init_database():
     CREATE TABLE IF NOT EXISTS my_holdings (
         holding_id      INTEGER PRIMARY KEY,
         fund_code       TEXT NOT NULL,
+        fund_name       TEXT,
         platform        TEXT NOT NULL,
         shares          REAL DEFAULT 0,
         cost_price      REAL DEFAULT 0,
         base_shares     REAL DEFAULT 0,
         tradable_shares REAL DEFAULT 0,
-        current_value   REAL DEFAULT 0,
         total_invested  REAL DEFAULT 0,
-        latest_nav      REAL DEFAULT 0,
-        nav_date        TEXT,
         first_buy_date  TEXT,
         updated_at      TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code),

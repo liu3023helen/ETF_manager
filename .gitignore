@@ -28,6 +28,8 @@ data/*.pdf
 data/*.docx
 data/*.png
 data/image/
+image/
+
 
 # Output files
 output/

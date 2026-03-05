@@ -7,9 +7,11 @@
 """
 
 import sqlite3
+import sys
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "etf_manager.db")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH
 
 
 # 最新持仓数据（按 fund_code 排序）
@@ -69,7 +71,7 @@ def rebuild_holdings():
     for i, (fund_code, platform, shares, cost_price, total_invested, first_buy_date) in enumerate(HOLDINGS_DATA, start=1):
         fund_name = name_map.get(fund_code, None)
         base_shares = round(shares * 0.2, 2)
-        tradable_shares = shares
+        tradable_shares = round(shares - base_shares, 2)
         insert_data.append((
             i, fund_code, fund_name, platform,
             shares, cost_price, base_shares, tradable_shares,

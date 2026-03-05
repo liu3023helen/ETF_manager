@@ -1,11 +1,9 @@
 import sqlite3
+import sys
 import os
 
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data",
-    "etf_manager.db",
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH
 
 
 def get_db():

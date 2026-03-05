@@ -4,14 +4,16 @@ ETF管理系统 - Excel报表导出脚本
 """
 
 import sqlite3
+import sys
 import os
 
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "data", "etf_manager.db")
-OUTPUT_PATH = os.path.join(BASE_DIR, "output", "ETF持仓报表.xlsx")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH, OUTPUT_DIR
+
+OUTPUT_PATH = os.path.join(OUTPUT_DIR, "ETF持仓报表.xlsx")
 
 
 def style_header(ws, row, col_count):

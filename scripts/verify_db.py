@@ -4,9 +4,11 @@ ETF管理系统 - 数据验证脚本
 """
 
 import sqlite3
+import sys
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "etf_manager.db")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH
 
 
 def verify():
@@ -32,7 +34,7 @@ def verify():
     print("2. 持仓管理 (my_holdings)")
     print("=" * 80)
     cursor.execute("""
-        SELECT h.*, f.fund_name, f.fund_category
+        SELECT h.*, f.fund_name as fi_fund_name, f.fund_category
         FROM my_holdings h
         JOIN fund_info f ON h.fund_code = f.fund_code
         ORDER BY h.platform, f.fund_category;
@@ -42,9 +44,9 @@ def verify():
         if row['platform'] != current_platform:
             current_platform = row['platform']
             print(f"\n  --- {current_platform} ---")
-        print(f"  {row['fund_name']}")
-        print(f"    份额: {row['shares']}  成本: {row['cost_price']}  市值: {row['current_value']}")
-        print(f"    底仓: {row['base_shares']}  可交易: {row['tradable_shares']}  累计投入: {row['total_invested']}")
+        print(f"  {row['fi_fund_name']}")
+        print(f"    份额: {row['shares']}  成本: {row['cost_price']}  累计投入: {row['total_invested']}")
+        print(f"    底仓: {row['base_shares']}  可交易: {row['tradable_shares']}")
 
     # ===== 3. 每日净值 =====
     print(f"\n{'=' * 80}")

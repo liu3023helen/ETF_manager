@@ -2,9 +2,11 @@
 初始化fund_info表 - 插入16只基金完整信息
 """
 import sqlite3
+import sys
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "etf_manager.db")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH
 
 def init_fund_info():
     conn = sqlite3.connect(DB_PATH)
