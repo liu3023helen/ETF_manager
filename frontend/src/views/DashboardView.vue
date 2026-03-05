@@ -79,10 +79,12 @@ const holdingColumns = [
   { colKey: 'fund_code', title: '代码', width: 100 },
   { colKey: 'platform', title: '平台', width: 120 },
   { colKey: 'fund_category', title: '分类', width: 100 },
-  { colKey: 'shares', title: '持仓份额', width: 110, cell: (_h: any, { row }: any) => formatNum(row.shares) },
-  { colKey: 'cost_price', title: '成本价', width: 100, cell: (_h: any, { row }: any) => formatNum(row.cost_price) },
+  { colKey: 'shares', title: '持有份额', width: 110, cell: (_h: any, { row }: any) => formatNum(row.shares) + ' 份' },
+  { colKey: 'cost_price', title: '成本价', width: 100, cell: (_h: any, { row }: any) => formatNum(row.cost_price) + ' 元' },
+  { colKey: 'base_shares', title: '底仓份额', width: 100, cell: (_h: any, { row }: any) => formatNum(row.base_shares) + ' 份' },
+  { colKey: 'tradable_shares', title: '可交易份额', width: 110, cell: (_h: any, { row }: any) => formatNum(row.tradable_shares) + ' 份' },
+  { colKey: 'total_invested', title: '累计投入', width: 110, cell: (_h: any, { row }: any) => formatNum(row.total_invested) + ' 元' },
   { colKey: 'current_value', title: '当前市值', width: 110, cell: (_h: any, { row }: any) => '¥' + formatNum(row.current_value) },
-  { colKey: 'base_shares', title: '底仓', width: 100, cell: (_h: any, { row }: any) => formatNum(row.base_shares) },
   { colKey: 'risk_level', title: '风险等级', width: 120 },
 ]
 

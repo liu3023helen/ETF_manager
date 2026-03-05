@@ -87,6 +87,22 @@ interface TableInfo {
   columns: { name: string; type: string }[]
 }
 
+// 字段单位格式化映射
+const FIELD_UNIT_MAP: Record<string, string> = {
+  shares: '份',
+  cost_price: '元',
+  base_shares: '份',
+  tradable_shares: '份',
+  total_invested: '元',
+}
+
+// 格式化数值：保留2位小数 + 单位
+function formatWithUnit(value: any, unit: string): string {
+  const num = parseFloat(value)
+  if (isNaN(num)) return value ?? ''
+  return num.toFixed(2) + ' ' + unit
+}
+
 // 英文列名 → 中文标题映射（基于数据库实际字段）
 const COLUMN_LABEL_MAP: Record<string, string> = {
   // 通用字段
@@ -223,13 +239,21 @@ async function fetchData() {
   tableData.data = res.data.data
 
   // 动态生成列配置
-  tableColumns.value = res.data.columns.map((col: string) => ({
-    colKey: col,
-    title: COLUMN_LABEL_MAP[col] || col,
-    sortable: true,
-    ellipsis: true,
-    width: getColumnWidth(col),
-  }))
+  tableColumns.value = res.data.columns.map((col: string) => {
+    const config: any = {
+      colKey: col,
+      title: COLUMN_LABEL_MAP[col] || col,
+      sortable: true,
+      ellipsis: true,
+      width: getColumnWidth(col),
+    }
+    // 为有单位映射的字段添加格式化
+    if (FIELD_UNIT_MAP[col]) {
+      const unit = FIELD_UNIT_MAP[col]
+      config.cell = (_h: any, { row }: any) => formatWithUnit(row[col], unit)
+    }
+    return config
+  })
 
   loading.value = false
 }
