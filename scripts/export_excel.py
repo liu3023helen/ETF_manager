@@ -62,7 +62,7 @@ def export_holdings_sheet(wb, conn):
     ws.title = "持仓总览"
 
     headers = ["平台", "基金名称", "基金代码", "基金公司", "分类", "风险等级",
-               "持仓份额", "成本价", "当前市值", "底仓份额", "可交易份额",
+               "持仓份额", "成本价", "估算市值", "底仓份额", "可交易份额",
                "累计投入", "近1年收益率", "近3年收益率"]
     for col, h in enumerate(headers, 1):
         ws.cell(1, col, h)
@@ -72,7 +72,8 @@ def export_holdings_sheet(wb, conn):
     cursor.execute("""
         SELECT h.platform, f.fund_name, f.fund_code, f.fund_company,
                f.fund_category, f.risk_level,
-               h.shares, h.cost_price, h.current_value,
+               h.shares, h.cost_price,
+               ROUND(h.shares * h.cost_price, 2) AS estimated_value,
                h.base_shares, h.tradable_shares, h.total_invested,
                f.return_1y, f.return_3y
         FROM my_holdings h
