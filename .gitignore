@@ -39,3 +39,4 @@ output/
 
 # Misc
 *.log
+# log/ 目录中的 .md 文档保留，仅忽略 .log 文件
