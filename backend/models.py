@@ -29,11 +29,14 @@ class HoldingDetail(BaseModel):
     cost_price: float = 0
     base_shares: float = 0
     tradable_shares: float = 0
-    current_value: float = 0
     total_invested: float = 0
-    latest_nav: float = 0
-    nav_date: Optional[str] = None
     first_buy_date: Optional[str] = None
+    updated_at: Optional[str] = None
+    # 以下字段由查询动态计算，不存储在 my_holdings 表中
+    current_value: float = 0
+    latest_nav: Optional[float] = None
+    nav_date: Optional[str] = None
+    risk_level: Optional[str] = None
 
 
 class DailyQuote(BaseModel):

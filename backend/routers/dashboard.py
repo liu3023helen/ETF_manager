@@ -5,43 +5,82 @@ from ..database import get_db
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
+def _calc_current_value(db: sqlite3.Connection):
+    """计算每条持仓的当前市值。
+
+    优先使用 daily_quotes 中最新净值 * 份额，
+    若无净值数据则回退到 shares * cost_price。
+    返回: list[dict] 包含 holding_id, fund_code, platform, fund_category, current_value
+    """
+    rows = db.execute(
+        "SELECT h.holding_id, h.fund_code, h.platform, h.shares, h.cost_price, "
+        "       h.total_invested, f.fund_category, "
+        "       q.nav AS latest_nav, q.date AS nav_date "
+        "FROM my_holdings h "
+        "LEFT JOIN fund_info f ON h.fund_code = f.fund_code "
+        "LEFT JOIN ("
+        "    SELECT fund_code, nav, date FROM daily_quotes "
+        "    WHERE (fund_code, date) IN ("
+        "        SELECT fund_code, MAX(date) FROM daily_quotes GROUP BY fund_code"
+        "    )"
+        ") q ON h.fund_code = q.fund_code"
+    ).fetchall()
+
+    results = []
+    for r in rows:
+        shares = r["shares"] or 0
+        cost_price = r["cost_price"] or 0
+        latest_nav = r["latest_nav"]
+        if latest_nav and latest_nav > 0:
+            current_value = round(shares * latest_nav, 2)
+        else:
+            current_value = round(shares * cost_price, 2)
+        results.append({
+            "holding_id": r["holding_id"],
+            "fund_code": r["fund_code"],
+            "platform": r["platform"],
+            "fund_category": r["fund_category"] or "其他",
+            "total_invested": r["total_invested"] or 0,
+            "current_value": current_value,
+            "latest_nav": latest_nav,
+            "nav_date": r["nav_date"],
+        })
+    return results
+
+
 @router.get("/summary")
 def get_summary(db: sqlite3.Connection = Depends(get_db)):
-    # 总资产、总投入
-    row = db.execute(
-        "SELECT COALESCE(SUM(current_value),0) as total_assets, "
-        "COALESCE(SUM(total_invested),0) as total_invested FROM my_holdings"
-    ).fetchone()
-    total_assets = row["total_assets"]
-    total_invested = row["total_invested"]
+    holdings = _calc_current_value(db)
+
+    total_assets = sum(h["current_value"] for h in holdings)
+    total_invested = sum(h["total_invested"] for h in holdings)
     total_pnl = total_assets - total_invested
     pnl_rate = (total_pnl / total_invested * 100) if total_invested > 0 else 0
 
-    # 持仓基金数
-    fund_count = db.execute(
-        "SELECT COUNT(DISTINCT fund_code) as cnt FROM my_holdings WHERE shares > 0"
-    ).fetchone()["cnt"]
+    # 持仓基金数（仅统计 current_value > 0 的）
+    fund_count = len(set(
+        h["fund_code"] for h in holdings if h["current_value"] > 0
+    ))
 
     # 按分类分布
-    cat_rows = db.execute(
-        "SELECT COALESCE(f.fund_category,'其他') as category, "
-        "SUM(h.current_value) as value "
-        "FROM my_holdings h LEFT JOIN fund_info f ON h.fund_code=f.fund_code "
-        "GROUP BY f.fund_category ORDER BY value DESC"
-    ).fetchall()
-    category_distribution = [
-        {"category": r["category"] or "其他", "value": r["value"] or 0}
-        for r in cat_rows
-    ]
+    cat_map: dict[str, float] = {}
+    for h in holdings:
+        cat = h["fund_category"]
+        cat_map[cat] = cat_map.get(cat, 0) + h["current_value"]
+    category_distribution = sorted(
+        [{"category": k, "value": round(v, 2)} for k, v in cat_map.items()],
+        key=lambda x: x["value"], reverse=True,
+    )
 
     # 按平台分布
-    plat_rows = db.execute(
-        "SELECT platform, SUM(current_value) as value "
-        "FROM my_holdings GROUP BY platform ORDER BY value DESC"
-    ).fetchall()
-    platform_distribution = [
-        {"platform": r["platform"], "value": r["value"] or 0} for r in plat_rows
-    ]
+    plat_map: dict[str, float] = {}
+    for h in holdings:
+        plat = h["platform"]
+        plat_map[plat] = plat_map.get(plat, 0) + h["current_value"]
+    platform_distribution = sorted(
+        [{"platform": k, "value": round(v, 2)} for k, v in plat_map.items()],
+        key=lambda x: x["value"], reverse=True,
+    )
 
     # 待执行信号数
     pending_signals = db.execute(
