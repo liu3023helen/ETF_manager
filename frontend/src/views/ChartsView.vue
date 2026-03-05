@@ -36,14 +36,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, GridComponent, DataZoomComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import VChart from '@/utils/echarts'
 import { getFunds, getQuotes } from '../api'
 
-use([LineChart, BarChart, TitleComponent, TooltipComponent, GridComponent, DataZoomComponent, CanvasRenderer])
 
 const funds = ref<any[]>([])
 const quotes = ref<any[]>([])

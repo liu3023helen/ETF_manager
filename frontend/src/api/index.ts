@@ -1,9 +1,24 @@
 import axios from 'axios'
+import { MessagePlugin } from 'tdesign-vue-next'
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
 })
+
+// 响应拦截器：统一错误处理
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const msg =
+      error.response?.data?.detail ||
+      error.response?.data?.message ||
+      error.message ||
+      '请求失败'
+    MessagePlugin.error(msg)
+    return Promise.reject(error)
+  }
+)
 
 // Dashboard
 export const getDashboardSummary = () => api.get('/dashboard/summary')

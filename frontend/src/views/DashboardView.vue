@@ -2,28 +2,22 @@
   <div>
     <!-- 核心指标 -->
     <div class="grid grid-cols-4 gap-4 mb-6">
-      <t-card class="text-center" :bordered="true">
-        <div class="text-sm text-gray-500 mb-1">总资产</div>
-        <div class="text-2xl font-bold text-blue-700">¥{{ formatNum(summary.total_assets) }}</div>
-      </t-card>
-      <t-card class="text-center" :bordered="true">
-        <div class="text-sm text-gray-500 mb-1">总投入</div>
-        <div class="text-2xl font-bold text-gray-700">¥{{ formatNum(summary.total_invested) }}</div>
-      </t-card>
-      <t-card class="text-center" :bordered="true">
-        <div class="text-sm text-gray-500 mb-1">总收益</div>
-        <div class="text-2xl font-bold" :class="summary.total_pnl >= 0 ? 'text-red-500' : 'text-green-600'">
-          {{ summary.total_pnl >= 0 ? '+' : '' }}¥{{ formatNum(summary.total_pnl) }}
-          <span class="text-sm ml-1">({{ summary.pnl_rate >= 0 ? '+' : '' }}{{ summary.pnl_rate }}%)</span>
-        </div>
-      </t-card>
-      <t-card class="text-center" :bordered="true">
-        <div class="text-sm text-gray-500 mb-1">持仓基金数</div>
-        <div class="text-2xl font-bold text-gray-700">{{ summary.fund_count }}</div>
-        <div v-if="summary.pending_signals > 0" class="text-xs text-orange-500 mt-1">
-          {{ summary.pending_signals }} 条待处理信号
-        </div>
-      </t-card>
+      <StatCard label="总资产" :value="'¥' + formatNum(summary.total_assets)" value-class="text-blue-700" />
+      <StatCard label="总投入" :value="'¥' + formatNum(summary.total_invested)" value-class="text-gray-700" />
+      <StatCard
+        label="总收益"
+        :value-class="summary.total_pnl >= 0 ? 'text-red-500' : 'text-green-600'"
+      >
+        {{ summary.total_pnl >= 0 ? '+' : '' }}¥{{ formatNum(summary.total_pnl) }}
+        <span class="text-sm ml-1">({{ summary.pnl_rate >= 0 ? '+' : '' }}{{ summary.pnl_rate }}%)</span>
+      </StatCard>
+      <StatCard label="持仓基金数" :value="summary.fund_count" value-class="text-gray-700">
+        <template #extra>
+          <div v-if="summary.pending_signals > 0" class="text-xs text-orange-500 mt-1">
+            {{ summary.pending_signals }} 条待处理信号
+          </div>
+        </template>
+      </StatCard>
     </div>
 
     <!-- 图表区 -->
@@ -45,22 +39,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { PieChart, BarChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import VChart from '@/utils/echarts'
+import { formatNum } from '@/utils/format'
+import StatCard from '@/components/StatCard.vue'
 import { getDashboardSummary, getHoldings } from '../api'
 
-use([PieChart, BarChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 const summary = ref<any>({
   total_assets: 0, total_invested: 0, total_pnl: 0, pnl_rate: 0,
   fund_count: 0, category_distribution: [], platform_distribution: [], pending_signals: 0,
 })
 const holdings = ref<any[]>([])
-
-const formatNum = (n: number) => (n ?? 0).toFixed(2)
 
 const categoryChartOption = computed(() => ({
   tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
