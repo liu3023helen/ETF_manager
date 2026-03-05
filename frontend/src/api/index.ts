@@ -22,6 +22,8 @@ export const getQuotes = (params?: {
   fund_code?: string
   date_from?: string
   date_to?: string
+  page?: number
+  page_size?: number
 }) => api.get('/quotes', { params })
 
 // DCA Plans

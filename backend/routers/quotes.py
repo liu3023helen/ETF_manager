@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 import sqlite3
 from ..database import get_db
 
@@ -10,22 +10,42 @@ def list_quotes(
     fund_code: str = None,
     date_from: str = None,
     date_to: str = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=1000),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    sql = (
-        "SELECT q.*, f.fund_name FROM daily_quotes q "
-        "LEFT JOIN fund_info f ON q.fund_code=f.fund_code WHERE 1=1"
-    )
+    where = " WHERE 1=1"
     params = []
     if fund_code:
-        sql += " AND q.fund_code=?"
+        where += " AND q.fund_code=?"
         params.append(fund_code)
     if date_from:
-        sql += " AND q.date>=?"
+        where += " AND q.date>=?"
         params.append(date_from)
     if date_to:
-        sql += " AND q.date<=?"
+        where += " AND q.date<=?"
         params.append(date_to)
-    sql += " ORDER BY q.date DESC, q.fund_code"
-    rows = db.execute(sql, params).fetchall()
-    return [dict(r) for r in rows]
+
+    # 总记录数
+    count_sql = (
+        "SELECT COUNT(*) FROM daily_quotes q" + where
+    )
+    total = db.execute(count_sql, params).fetchone()[0]
+
+    # 分页查询
+    sql = (
+        "SELECT q.*, f.fund_name FROM daily_quotes q "
+        "LEFT JOIN fund_info f ON q.fund_code=f.fund_code"
+        + where
+        + " ORDER BY q.date DESC, q.fund_code"
+        + " LIMIT ? OFFSET ?"
+    )
+    offset = (page - 1) * page_size
+    rows = db.execute(sql, params + [page_size, offset]).fetchall()
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "data": [dict(r) for r in rows],
+    }

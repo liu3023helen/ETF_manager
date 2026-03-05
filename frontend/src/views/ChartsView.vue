@@ -51,14 +51,14 @@ const selectedFund = ref('')
 const dateRange = ref<string[]>([])
 
 const loadQuotes = async () => {
-  const params: any = {}
+  const params: any = { page_size: 1000 }
   if (selectedFund.value) params.fund_code = selectedFund.value
   if (dateRange.value?.length === 2) {
     params.date_from = dateRange.value[0]
     params.date_to = dateRange.value[1]
   }
   const res = await getQuotes(params)
-  quotes.value = res.data.reverse()
+  quotes.value = (res.data.data || []).reverse()
 }
 
 const navChartOption = computed(() => ({

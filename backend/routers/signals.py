@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 import sqlite3
 from ..database import get_db
 from ..models import SignalStatusUpdate
@@ -27,6 +27,11 @@ def update_signal_status(
     update: SignalStatusUpdate,
     db: sqlite3.Connection = Depends(get_db),
 ):
+    row = db.execute(
+        "SELECT signal_id FROM trade_signals WHERE signal_id=?", (signal_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"信号 {signal_id} 不存在")
     db.execute(
         "UPDATE trade_signals SET exec_status=?, actual_action=? WHERE signal_id=?",
         (update.exec_status, update.actual_action, signal_id),

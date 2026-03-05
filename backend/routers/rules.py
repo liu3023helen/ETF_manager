@@ -47,6 +47,11 @@ def create_rule(rule: TradingRuleCreate, db: sqlite3.Connection = Depends(get_db
 def update_rule(
     rule_id: int, rule: TradingRuleCreate, db: sqlite3.Connection = Depends(get_db)
 ):
+    row = db.execute(
+        "SELECT rule_id FROM trading_rules WHERE rule_id=?", (rule_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
     db.execute(
         "UPDATE trading_rules SET fund_category=?, rule_type=?, condition_desc=?, "
         "threshold=?, action_desc=?, priority=? WHERE rule_id=?",
@@ -66,6 +71,11 @@ def update_rule(
 
 @router.patch("/{rule_id}/toggle")
 def toggle_rule(rule_id: int, db: sqlite3.Connection = Depends(get_db)):
+    row = db.execute(
+        "SELECT rule_id FROM trading_rules WHERE rule_id=?", (rule_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
     db.execute(
         "UPDATE trading_rules SET is_active = CASE WHEN is_active=1 THEN 0 ELSE 1 END "
         "WHERE rule_id=?",
