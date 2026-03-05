@@ -1,0 +1,31 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.12",
+    "vue-router": "^4.5.0",
+    "axios": "^1.7.0",
+    "tdesign-vue-next": "1.13.1",
+    "tdesign-icons-vue-next": "0.3.6",
+    "vue-echarts": "^7.0.0",
+    "echarts": "^5.5.0",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "typescript": "~5.6.2",
+    "vite": "^5.4.10",
+    "vue-tsc": "^2.1.8",
+    "tailwindcss": "3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "postcss": "^8.5.0",
+    "autoprefixer": "^10.4.20"
+  }
+}

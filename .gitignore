@@ -1,0 +1,39 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+
+# Node.js
+node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Data files (large/sensitive)
+data/*.db
+data/*.pptx
+data/*.pdf
+data/*.docx
+data/*.png
+data/image/
+
+# Output files
+output/
+
+# CodeBuddy
+.codebuddy/
+
+# Misc
+*.log
