@@ -141,11 +141,19 @@ interface SqlResult {
 // 字段单位格式化映射
 const FIELD_UNIT_MAP: Record<string, string> = {
   shares: '份',
-  cost_price: '元',
+  holding_shares: '份',
   base_shares: '份',
-  tradable_shares: '份',
-  total_invested: '元',
+  avg_buy_price: '元',
+  current_price: '元',
+  holding_value: '元',
+  invested_capital: '元',
+  profit_loss_amount: '元',
+  dca_amount: '元',
+  dca_total_invested: '元',
+  amount: '元',
+  fee: '元',
 }
+
 
 // 格式化数值：保留2位小数 + 单位
 function formatWithUnit(value: any, unit: string): string {
@@ -154,26 +162,18 @@ function formatWithUnit(value: any, unit: string): string {
   return num.toFixed(2) + ' ' + unit
 }
 
-// 英文列名 → 中文标题映射（基于数据库实际字段）
+// 英文列名 → 中文标题映射（基于当前 5 张核心表）
 const COLUMN_LABEL_MAP: Record<string, string> = {
   // 通用字段
   id: 'ID',
-  holding_id: '持仓ID',
+  created_at: '创建时间',
+  updated_at: '更新时间',
   fund_code: '基金代码',
   fund_name: '基金名称',
   platform: '平台',
-  shares: '持有份额',
-  cost_price: '成本价',
-  base_shares: '底仓份额',
-  tradable_shares: '可交易份额',
-  total_invested: '累计投入',
-  first_buy_date: '首次买入日期',
-  updated_at: '更新时间',
-  created_at: '创建时间',
-  is_active: '是否启用',
-  amount: '金额',
   note: '备注',
-  // fund_info 表
+
+  // fund_info
   fund_company: '基金公司',
   fund_type: '基金类型',
   tracking_index: '跟踪指数',
@@ -185,40 +185,56 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   return_3y: '近3年收益',
   return_since_inception: '成立以来收益',
   inception_date: '成立日期',
-  // daily_quotes 表
+
+  // fund_holdings
+  holding_id: '持仓ID',
+  holding_shares: '持有份额',
+  avg_buy_price: '平均买入价',
+  base_shares: '底仓份额',
+  current_price: '当前净值/价格',
+  holding_value: '持仓市值',
+  invested_capital: '累计投入金额',
+  profit_loss_amount: '持仓盈亏金额',
+  return_rate: '收益率(%)',
+  dca_is_active: '定投启用',
+  dca_frequency: '定投频率',
+  dca_amount: '每期定投金额',
+  dca_type: '定投类型',
+  dca_total_invested: '定投累计金额',
+  first_buy_date: '首次买入日期',
+  last_update_date: '最后更新日期',
+
+  // daily_quotes
   date: '日期',
-  nav: '净值',
+  nav: '单位净值',
   acc_nav: '累计净值',
   daily_change_pct: '日涨跌幅',
   daily_value: '日市值',
   daily_pnl: '日盈亏',
-  // dca_plans 表
-  plan_id: '计划ID',
-  frequency: '频率',
-  dca_type: '定投类型',
-  start_date: '开始日期',
-  end_date: '结束日期',
-  // transactions 表
-  tx_id: '交易ID',
-  tx_type: '交易类型',
-  tx_date: '交易日期',
-  nav_at_tx: '成交净值',
-  fee: '手续费',
-  // trading_rules 表
+
+  // trading_rules
   rule_id: '规则ID',
   rule_type: '规则类型',
   condition_desc: '触发条件',
   threshold: '阈值',
   action_desc: '执行操作',
   priority: '优先级',
-  // trade_signals 表
-  signal_id: '信号ID',
-  signal_date: '信号日期',
+  is_active: '启用状态',
+
+  // trade_records
+  record_id: '记录ID',
+  record_type: '记录类型',
+  record_date: '记录日期',
   signal_type: '信号类型',
   trigger_condition: '触发条件',
+  trigger_value: '触发值',
   suggested_action: '建议操作',
   exec_status: '执行状态',
+  exec_date: '执行日期',
   actual_action: '实际操作',
+  amount: '金额',
+  shares: '份额',
+  fee: '手续费',
 }
 
 // 每个表的默认排序配置（与后端 DEFAULT_SORT 对应）
@@ -226,8 +242,10 @@ const DEFAULT_SORT_MAP: Record<string, { sortBy: string; descending: boolean }> 
   fund_info: { sortBy: 'fund_code', descending: false },
   fund_holdings: { sortBy: 'fund_code', descending: false },
   daily_quotes: { sortBy: 'date', descending: false },
-  trading_rules: { sortBy: 'rule_id', descending: false },
+  trading_rules: { sortBy: 'fund_category', descending: false },
+  trade_records: { sortBy: 'record_date', descending: true },
 }
+
 
 
 const tables = ref<TableInfo[]>([])
