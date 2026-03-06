@@ -13,8 +13,8 @@
       </StatCard>
       <StatCard label="持仓基金数" :value="summary.fund_count" value-class="text-gray-700">
         <template #extra>
-          <div v-if="summary.pending_signals > 0" class="text-xs text-orange-500 mt-1">
-            {{ summary.pending_signals }} 条待处理信号
+          <div v-if="pendingCount > 0" class="text-xs text-orange-500 mt-1">
+            {{ pendingCount }} 条待处理记录
           </div>
         </template>
       </StatCard>
@@ -47,9 +47,12 @@ import { getDashboardSummary, getHoldings } from '../api'
 
 const summary = ref<any>({
   total_assets: 0, total_invested: 0, total_pnl: 0, pnl_rate: 0,
-  fund_count: 0, category_distribution: [], platform_distribution: [], pending_signals: 0,
+  fund_count: 0, category_distribution: [], platform_distribution: [], pending_records: 0,
+
 })
 const holdings = ref<any[]>([])
+const pendingCount = computed(() => summary.value.pending_records ?? summary.value.pending_signals ?? 0)
+
 
 const categoryChartOption = computed(() => ({
   tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
