@@ -41,14 +41,6 @@ export const getQuotes = (params?: {
   page_size?: number
 }) => api.get('/quotes', { params })
 
-// DCA Plans
-export const getDcaPlans = () => api.get('/dca-plans')
-export const createDcaPlan = (data: any) => api.post('/dca-plans', data)
-export const updateDcaPlan = (id: number, data: any) =>
-  api.put(`/dca-plans/${id}`, data)
-export const toggleDcaPlan = (id: number) =>
-  api.patch(`/dca-plans/${id}/toggle`)
-
 // Rules
 export const getRules = (params?: { category?: string; rule_type?: string }) =>
   api.get('/rules', { params })
@@ -57,17 +49,17 @@ export const updateRule = (id: number, data: any) =>
   api.put(`/rules/${id}`, data)
 export const toggleRule = (id: number) => api.patch(`/rules/${id}/toggle`)
 
-// Signals
-export const getSignals = (status?: string) =>
-  api.get('/signals', { params: status ? { status } : {} })
-export const updateSignalStatus = (id: number, data: any) =>
-  api.patch(`/signals/${id}`, data)
-
-// Transactions
-export const getTransactions = (params?: any) =>
-  api.get('/transactions', { params })
-export const createTransaction = (data: any) =>
-  api.post('/transactions', data)
+// Trade Records
+export const getTradeRecords = (params?: any) =>
+  api.get('/trade-records', { params })
+export const getTradeRecord = (id: number) =>
+  api.get(`/trade-records/${id}`)
+export const createTradeRecord = (data: any) =>
+  api.post('/trade-records', data)
+export const updateTradeRecord = (id: number, data: any) =>
+  api.patch(`/trade-records/${id}`, data)
+export const deleteTradeRecord = (id: number) =>
+  api.delete(`/trade-records/${id}`)
 
 // Tables (数据明细)
 export const getTableList = () => api.get('/tables')

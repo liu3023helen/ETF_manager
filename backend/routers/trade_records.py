@@ -81,16 +81,17 @@ def create_record(
     try:
         cursor = db.execute(
             "INSERT INTO trade_records "
-            "(fund_code, fund_name, record_type, record_date, "
+            "(fund_code, fund_name, record_type, record_date, platform, "
             "signal_type, trigger_condition, trigger_value, suggested_action, "
             "exec_status, exec_date, actual_action, "
             "amount, shares, nav, fee, note, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))",
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))",
             (
                 record.fund_code,
                 record.fund_name,
                 record.record_type,
                 record.record_date,
+                record.platform,
                 record.signal_type,
                 record.trigger_condition,
                 record.trigger_value,
@@ -108,12 +109,14 @@ def create_record(
 
         # 如果是实际交易类型（买入/卖出/定投），联动更新 fund_holdings
         if record.record_type in ("买入", "卖出", "定投") and record.shares and record.shares > 0:
-            # 获取平台：从 fund_holdings 中查找该基金的平台
-            holding = db.execute(
-                "SELECT platform FROM fund_holdings WHERE fund_code=? LIMIT 1",
-                (record.fund_code,),
-            ).fetchone()
-            platform = holding["platform"] if holding else "未知"
+            # 优先使用请求中的 platform，否则从现有持仓查
+            platform = record.platform
+            if not platform:
+                holding = db.execute(
+                    "SELECT platform FROM fund_holdings WHERE fund_code=? LIMIT 1",
+                    (record.fund_code,),
+                ).fetchone()
+                platform = holding["platform"] if holding else "未知"
 
             apply_transaction(
                 db, record.record_type, record.fund_code, platform,

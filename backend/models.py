@@ -96,6 +96,7 @@ class TradeRecordCreate(BaseModel):
     fund_name: Optional[str] = None
     record_type: str
     record_date: str
+    platform: Optional[str] = None
     signal_type: Optional[str] = None
     trigger_condition: Optional[str] = None
     trigger_value: Optional[float] = None

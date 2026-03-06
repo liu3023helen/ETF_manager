@@ -66,7 +66,7 @@ const filterCategory = ref('')
 const filterType = ref('')
 const form = ref({ fund_category: '', rule_type: '止盈', condition_desc: '', threshold: 0, action_desc: '', priority: 0 })
 
-const typeTheme: Record<string, string> = { '止盈': 'danger', '接回': 'success', '加仓': 'warning', '纪律': 'primary' }
+const typeTheme: Record<string, 'danger' | 'success' | 'warning' | 'primary' | 'default'> = { '止盈': 'danger', '接回': 'success', '加仓': 'warning', '纪律': 'primary' }
 
 const handleToggle = async (row: any) => {
   await toggleRule(row.rule_id)

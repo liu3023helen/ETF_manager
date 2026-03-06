@@ -18,14 +18,7 @@
           <template #icon><ChartLineIcon /></template>
           收益曲线
         </t-menu-item>
-        <t-menu-item value="/dca-plans">
-          <template #icon><CalendarIcon /></template>
-          定投管理
-        </t-menu-item>
-        <t-menu-item value="/signals">
-          <template #icon><NotificationIcon /></template>
-          交易信号
-        </t-menu-item>
+
         <t-menu-item value="/rules">
           <template #icon><SettingIcon /></template>
           交易规则
@@ -57,8 +50,6 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardIcon,
   ChartLineIcon,
-  CalendarIcon,
-  NotificationIcon,
   SettingIcon,
   ListIcon,
   DataBaseIcon,

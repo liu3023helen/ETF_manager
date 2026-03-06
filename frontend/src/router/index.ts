@@ -19,18 +19,7 @@ const router = createRouter({
       component: () => import('../views/ChartsView.vue'),
       meta: { title: '收益曲线' },
     },
-    {
-      path: '/dca-plans',
-      name: 'DcaPlans',
-      component: () => import('../views/DcaPlansView.vue'),
-      meta: { title: '定投管理' },
-    },
-    {
-      path: '/signals',
-      name: 'Signals',
-      component: () => import('../views/SignalsView.vue'),
-      meta: { title: '交易信号' },
-    },
+
     {
       path: '/rules',
       name: 'Rules',
