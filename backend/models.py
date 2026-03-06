@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Literal
+
 
 
 class FundInfo(BaseModel):
@@ -94,20 +95,20 @@ class TradeRecord(BaseModel):
 class TradeRecordCreate(BaseModel):
     fund_code: str
     fund_name: Optional[str] = None
-    record_type: str
+    record_type: Literal["买入", "卖出", "定投", "信号"]
     record_date: str
     platform: Optional[str] = None
     signal_type: Optional[str] = None
     trigger_condition: Optional[str] = None
-    trigger_value: Optional[float] = None
+    trigger_value: Optional[float] = Field(default=None)
     suggested_action: Optional[str] = None
-    exec_status: Optional[str] = "待执行"
+    exec_status: Optional[Literal["待执行", "已执行", "已忽略"]] = "待执行"
     exec_date: Optional[str] = None
     actual_action: Optional[str] = None
-    amount: Optional[float] = None
-    shares: Optional[float] = None
-    nav: Optional[float] = None
-    fee: float = 0
+    amount: Optional[float] = Field(default=None, ge=0)
+    shares: Optional[float] = Field(default=None, ge=0)
+    nav: Optional[float] = Field(default=None, ge=0)
+    fee: float = Field(default=0, ge=0)
     note: Optional[str] = None
 
 

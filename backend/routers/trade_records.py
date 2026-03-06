@@ -79,6 +79,41 @@ def create_record(
 ):
     """创建交易记录，并根据记录类型联动更新持仓"""
     try:
+        platform = record.platform
+
+        # 实际交易类型的业务校验
+        if record.record_type in ("买入", "卖出", "定投"):
+            if record.shares is None or record.shares <= 0:
+                raise HTTPException(status_code=400, detail="买入/卖出/定投记录的 shares 必须大于0")
+
+            # 买入/定投至少提供 amount 或 nav（二者都为空会导致投入金额不可计算）
+            if record.record_type in ("买入", "定投") and not ((record.amount is not None and record.amount > 0) or (record.nav is not None and record.nav > 0)):
+                raise HTTPException(status_code=400, detail="买入/定投记录必须提供 amount 或 nav")
+
+            # 平台判定：优先请求值，否则尝试从持仓推断
+            if not platform:
+                rows = db.execute(
+                    "SELECT DISTINCT platform FROM fund_holdings WHERE fund_code=?",
+                    (record.fund_code,),
+                ).fetchall()
+                if len(rows) == 1:
+                    platform = rows[0]["platform"]
+                elif len(rows) > 1:
+                    raise HTTPException(status_code=400, detail="该基金存在多个平台持仓，请指定 platform")
+                else:
+                    raise HTTPException(status_code=400, detail="新交易记录必须指定 platform")
+
+            # 卖出时校验可卖份额
+            if record.record_type == "卖出":
+                holding = db.execute(
+                    "SELECT holding_shares FROM fund_holdings WHERE fund_code=? AND platform=? LIMIT 1",
+                    (record.fund_code, platform),
+                ).fetchone()
+                if not holding or (holding["holding_shares"] or 0) <= 0:
+                    raise HTTPException(status_code=400, detail="当前平台无可卖持仓")
+                if record.shares > (holding["holding_shares"] or 0):
+                    raise HTTPException(status_code=400, detail="卖出份额不能超过当前持仓份额")
+
         cursor = db.execute(
             "INSERT INTO trade_records "
             "(fund_code, fund_name, record_type, record_date, platform, "
@@ -91,7 +126,7 @@ def create_record(
                 record.fund_name,
                 record.record_type,
                 record.record_date,
-                record.platform,
+                platform,
                 record.signal_type,
                 record.trigger_condition,
                 record.trigger_value,
@@ -108,25 +143,24 @@ def create_record(
         )
 
         # 如果是实际交易类型（买入/卖出/定投），联动更新 fund_holdings
-        if record.record_type in ("买入", "卖出", "定投") and record.shares and record.shares > 0:
-            # 优先使用请求中的 platform，否则从现有持仓查
-            platform = record.platform
-            if not platform:
-                holding = db.execute(
-                    "SELECT platform FROM fund_holdings WHERE fund_code=? LIMIT 1",
-                    (record.fund_code,),
-                ).fetchone()
-                platform = holding["platform"] if holding else "未知"
-
+        if record.record_type in ("买入", "卖出", "定投"):
             apply_transaction(
-                db, record.record_type, record.fund_code, platform,
-                record.amount or 0, record.shares, record.nav,
+                db,
+                record.record_type,
+                record.fund_code,
+                platform,
+                record.amount or 0,
+                record.shares,
+                record.nav,
             )
 
         db.commit()
         return {"record_id": cursor.lastrowid, "message": "记录创建成功"}
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
-        db.execute("ROLLBACK")
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"记录创建失败: {str(e)}")
 
 
