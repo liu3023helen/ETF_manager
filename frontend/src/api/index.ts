@@ -77,3 +77,7 @@ export const getTableData = (tableName: string, params?: {
   sort_by?: string
   sort_order?: string
 }) => api.get(`/tables/${tableName}`, { params })
+export const executeTableSql = (sql: string) =>
+  api.post('/tables/execute-sql', { sql })
+
+

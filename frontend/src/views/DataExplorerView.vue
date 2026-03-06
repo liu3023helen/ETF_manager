@@ -73,12 +73,55 @@
       <div class="text-gray-400 text-lg mb-2">请选择一个表查看数据</div>
       <div class="text-gray-300 text-sm">点击上方的表卡片即可查看对应数据明细</div>
     </div>
+
+    <!-- SQL 执行区域 -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold text-gray-700">SQL 查询</div>
+          <div class="text-xs text-gray-400 mt-1">仅支持只读查询（SELECT / DESC），每次执行一条语句</div>
+        </div>
+        <t-button theme="primary" :loading="sqlLoading" @click="runSql">执行 SQL</t-button>
+      </div>
+
+      <textarea
+        v-model="sqlText"
+        class="w-full min-h-[120px] rounded-md border border-gray-200 p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+      />
+      <div class="text-xs text-gray-400">
+        常用示例：<code>select * from fund_info;</code>、<code>desc fund_info;</code>
+      </div>
+
+
+      <div v-if="sqlResult" class="space-y-3">
+        <div class="flex items-center gap-2 text-sm text-gray-500">
+          <span>返回 {{ sqlResult.row_count }} 条</span>
+          <t-tag v-if="sqlResult.truncated" theme="warning" variant="light" size="small">
+            已自动限制最多 500 条
+          </t-tag>
+        </div>
+
+        <div class="overflow-x-auto border border-gray-100 rounded">
+          <t-table
+            :data="sqlResult.rows"
+            :columns="sqlColumns"
+            size="small"
+            stripe
+            hover
+            :max-height="360"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { getTableList, getTableData } from '../api'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { getTableList, getTableData, executeTableSql } from '../api'
+
 
 interface TableInfo {
   name: string
@@ -86,6 +129,14 @@ interface TableInfo {
   count: number
   columns: { name: string; type: string }[]
 }
+
+interface SqlResult {
+  columns: string[]
+  rows: any[]
+  row_count: number
+  truncated: boolean
+}
+
 
 // 字段单位格式化映射
 const FIELD_UNIT_MAP: Record<string, string> = {
@@ -206,6 +257,22 @@ const tableData = reactive<{
 
 const tableColumns = ref<any[]>([])
 
+const sqlLoading = ref(false)
+const sqlText = ref(`select * from fund_info;`)
+
+const sqlResult = ref<SqlResult | null>(null)
+const sqlColumns = computed(() => {
+  if (!sqlResult.value) return []
+  return sqlResult.value.columns.map((col) => ({
+    colKey: col,
+    title: getBilingualColumnTitle(col),
+    ellipsis: true,
+    width: getColumnWidth(col),
+  }))
+})
+
+
+
 onMounted(async () => {
   const res = await getTableList()
   tables.value = res.data
@@ -244,11 +311,12 @@ async function fetchData() {
   tableColumns.value = res.data.columns.map((col: string) => {
     const config: any = {
       colKey: col,
-      title: COLUMN_LABEL_MAP[col] || col,
+      title: getBilingualColumnTitle(col),
       sortable: true,
       ellipsis: true,
       width: getColumnWidth(col),
     }
+
     // 为有单位映射的字段添加格式化
     if (FIELD_UNIT_MAP[col]) {
       const unit = FIELD_UNIT_MAP[col]
@@ -260,7 +328,13 @@ async function fetchData() {
   loading.value = false
 }
 
+function getBilingualColumnTitle(col: string): string {
+  const cnTitle = COLUMN_LABEL_MAP[col]
+  return cnTitle ? `${col} / ${cnTitle}` : col
+}
+
 function getColumnWidth(col: string): number | undefined {
+
   // 针对常见字段设置合理宽度
   if (col.includes('id') && col.length <= 10) return 80
   if (col.includes('code')) return 110
@@ -269,6 +343,27 @@ function getColumnWidth(col: string): number | undefined {
   if (col.includes('desc') || col.includes('condition') || col.includes('action')) return 220
   if (col.includes('note') || col.includes('holdings')) return 200
   return 130
+}
+
+async function runSql() {
+  const sql = sqlText.value.trim()
+  if (!sql) {
+    MessagePlugin.warning('请先输入 SQL')
+    return
+  }
+
+  sqlLoading.value = true
+  try {
+    const res = await executeTableSql(sql)
+    sqlResult.value = {
+      columns: res.data.columns || [],
+      rows: res.data.rows || [],
+      row_count: res.data.row_count || 0,
+      truncated: !!res.data.truncated,
+    }
+  } finally {
+    sqlLoading.value = false
+  }
 }
 
 function onPageChange(info: any) {
@@ -287,3 +382,4 @@ function onSortChange(sort: any) {
   fetchData()
 }
 </script>
+
