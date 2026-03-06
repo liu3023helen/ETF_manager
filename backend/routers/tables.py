@@ -8,21 +8,17 @@ from ..database import get_db
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
 
-# 白名单：只允许查询这些“展示表名”（前端看到的名字）
+# 白名单：只允许查询这些"展示表名"（前端看到的名字）
 ALLOWED_TABLES = {
     "fund_info": "基金信息",
     "fund_holdings": "持仓管理",
     "daily_quotes": "每日净值",
-    "dca_plans": "定投计划",
-    "transactions": "交易记录",
     "trading_rules": "交易规则",
-    "trade_signals": "交易信号",
+    "trade_records": "交易记录",
 }
 
-# 展示名 -> 真实物理表名 映射（保留历史兼容）
-TABLE_NAME_MAP = {
-    # 之前 fund_holdings 映射到 my_holdings，现已直接使用 fund_holdings 表
-}
+# 展示名 -> 真实物理表名 映射
+TABLE_NAME_MAP = {}
 
 
 # 每个表的默认排序规则（按展示名配置）
@@ -31,6 +27,7 @@ DEFAULT_SORT = {
     "fund_holdings": "fund_code ASC",
     "daily_quotes": "date ASC, fund_code ASC",
     "trading_rules": "fund_category ASC, rule_type ASC, priority ASC, rule_id ASC",
+    "trade_records": "record_date DESC, record_id DESC",
 }
 
 
@@ -54,11 +51,6 @@ FORBIDDEN_SQL_KEYWORDS = {
 
 def resolve_physical_table(display_table_name: str, conn: Optional[sqlite3.Connection] = None) -> str:
     """将前端展示表名解析为数据库真实表名。"""
-    # fund_holdings 优先使用物理新表；不存在时回退到历史 my_holdings
-    if display_table_name == "fund_holdings":
-        if conn is not None and table_exists(conn, "fund_holdings"):
-            return "fund_holdings"
-        return "my_holdings"
     return TABLE_NAME_MAP.get(display_table_name, display_table_name)
 
 
