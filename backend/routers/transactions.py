@@ -71,7 +71,7 @@ def create_transaction(
             ),
         )
 
-        # 联动更新 my_holdings
+        # 联动更新 fund_holdings
         if tx.tx_type in ("买入", "定投", "卖出") and tx.shares and tx.shares > 0:
             apply_transaction(
                 db, tx.tx_type, tx.fund_code, tx.platform,

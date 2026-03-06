@@ -32,7 +32,7 @@ class HoldingDetail(BaseModel):
     total_invested: float = 0
     first_buy_date: Optional[str] = None
     updated_at: Optional[str] = None
-    # 以下字段由查询动态计算，不存储在 my_holdings 表中
+    # 以下字段可能由查询动态计算，或者直接从 fund_holdings 表中读取
     current_value: float = 0
     latest_nav: Optional[float] = None
     nav_date: Optional[str] = None

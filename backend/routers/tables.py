@@ -21,7 +21,7 @@ ALLOWED_TABLES = {
 
 # 展示名 -> 真实物理表名 映射（保留历史兼容）
 TABLE_NAME_MAP = {
-    "fund_holdings": "my_holdings",
+    # 之前 fund_holdings 映射到 my_holdings，现已直接使用 fund_holdings 表
 }
 
 
