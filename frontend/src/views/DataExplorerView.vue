@@ -173,9 +173,11 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
 // 每个表的默认排序配置（与后端 DEFAULT_SORT 对应）
 const DEFAULT_SORT_MAP: Record<string, { sortBy: string; descending: boolean }> = {
   fund_info: { sortBy: 'fund_code', descending: false },
-  my_holdings: { sortBy: 'fund_code', descending: false },
+  fund_holdings: { sortBy: 'fund_code', descending: false },
   daily_quotes: { sortBy: 'date', descending: false },
+  trading_rules: { sortBy: 'rule_id', descending: false },
 }
+
 
 const tables = ref<TableInfo[]>([])
 const activeTable = ref('')
