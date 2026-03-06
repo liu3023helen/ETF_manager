@@ -1,6 +1,6 @@
 """
 ETF管理系统 - 数据库初始化脚本
-创建SQLite数据库和7张表（含外键约束、唯一索引）
+创建SQLite数据库和5张表（含外键约束、唯一索引）
 幂等设计（IF NOT EXISTS），可重复执行
 """
 
@@ -23,7 +23,7 @@ def init_database():
     # 开启外键约束
     cursor.execute("PRAGMA foreign_keys=ON;")
 
-    # ===== 1. 基金基本信息表（只增不减） =====
+    # ===== 1. fund_info — 基金基本信息表 =====
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS fund_info (
         fund_code       TEXT PRIMARY KEY,
@@ -38,34 +38,42 @@ def init_database():
         return_1y       TEXT,
         return_3y       TEXT,
         return_since_inception TEXT,
+        inception_date  TEXT,
         created_at      TEXT DEFAULT (datetime('now', 'localtime')),
-        updated_at      TEXT DEFAULT (datetime('now', 'localtime')),
-        inception_date  TEXT
+        updated_at      TEXT DEFAULT (datetime('now', 'localtime'))
     );
     """)
 
-    # ===== 2. 持仓管理表 =====
-    # holding_id 不使用 AUTOINCREMENT，由应用层维护连续编号
-    # 一个基金在一个平台只有一条记录（实时持仓）
+    # ===== 2. fund_holdings — 持仓管理表 =====
+    # 定投信息已整合到本表（dca_* 字段）
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS my_holdings (
-        holding_id      INTEGER PRIMARY KEY,
-        fund_code       TEXT NOT NULL,
-        fund_name       TEXT,
-        platform        TEXT NOT NULL,
-        shares          REAL DEFAULT 0,
-        cost_price      REAL DEFAULT 0,
-        base_shares     REAL DEFAULT 0,
-        tradable_shares REAL DEFAULT 0,
-        total_invested  REAL DEFAULT 0,
-        first_buy_date  TEXT,
-        updated_at      TEXT DEFAULT (datetime('now', 'localtime')),
-        FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code),
-        UNIQUE(fund_code, platform)
+    CREATE TABLE IF NOT EXISTS fund_holdings (
+        holding_id          INTEGER PRIMARY KEY,
+        fund_code           TEXT NOT NULL,
+        fund_name           TEXT,
+        platform            TEXT NOT NULL,
+        updated_at          TEXT,
+        holding_shares      REAL DEFAULT 0,
+        avg_buy_price       REAL DEFAULT 0,
+        base_shares         REAL DEFAULT 0,
+        current_price       REAL DEFAULT 0,
+        holding_value       REAL DEFAULT 0,
+        invested_capital    REAL DEFAULT 0,
+        profit_loss_amount  REAL DEFAULT 0,
+        return_rate         REAL DEFAULT 0,
+        dca_is_active       INTEGER DEFAULT 0,
+        dca_frequency       TEXT,
+        dca_amount          REAL,
+        dca_type            TEXT,
+        dca_total_invested  REAL,
+        first_buy_date      TEXT,
+        last_update_date    TEXT,
+        created_at          TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code)
     );
     """)
 
-    # ===== 3. 每日净值表（历史数据，一基金多天） =====
+    # ===== 3. daily_quotes — 每日净值表 =====
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS daily_quotes (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,43 +89,7 @@ def init_database():
     );
     """)
 
-    # ===== 4. 定投计划表（只增不减） =====
-    # 修改计划 = 旧行end_date改为当天 + 新行插入
-    # 当前生效计划：end_date = '9999-12-31' AND is_active = 1
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS dca_plans (
-        plan_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        fund_code       TEXT NOT NULL,
-        platform        TEXT,
-        is_active       INTEGER DEFAULT 1,
-        frequency       TEXT,
-        amount          REAL,
-        dca_type        TEXT DEFAULT '固定金额',
-        total_invested  REAL DEFAULT 0,
-        start_date      TEXT,
-        end_date        TEXT DEFAULT '9999-12-31',
-        FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code)
-    );
-    """)
-
-    # ===== 5. 交易记录表 =====
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
-        tx_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        fund_code       TEXT NOT NULL,
-        platform        TEXT,
-        tx_type         TEXT NOT NULL,
-        tx_date         TEXT NOT NULL,
-        amount          REAL,
-        shares          REAL,
-        nav_at_tx       REAL,
-        fee             REAL DEFAULT 0,
-        note            TEXT,
-        FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code)
-    );
-    """)
-
-    # ===== 6. 交易规则配置表 =====
+    # ===== 4. trading_rules — 交易规则配置表 =====
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS trading_rules (
         rule_id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,48 +99,63 @@ def init_database():
         threshold       REAL,
         action_desc     TEXT NOT NULL,
         priority        INTEGER DEFAULT 0,
-        is_active       INTEGER DEFAULT 1
+        is_active       INTEGER DEFAULT 1,
+        created_at      TEXT DEFAULT (datetime('now', 'localtime')),
+        updated_at      TEXT DEFAULT (datetime('now', 'localtime'))
     );
     """)
 
-    # ===== 7. 交易信号表 =====
+    # ===== 5. trade_records — 交易记录表 =====
+    # 合并了原 transactions（交易流水）和 trade_signals（交易信号）
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS trade_signals (
-        signal_id       INTEGER PRIMARY KEY AUTOINCREMENT,
-        fund_code       TEXT NOT NULL,
-        signal_date     TEXT NOT NULL,
-        signal_type     TEXT NOT NULL,
-        trigger_condition TEXT,
-        suggested_action TEXT,
-        exec_status     TEXT DEFAULT '待执行',
-        actual_action   TEXT,
-        created_at      TEXT DEFAULT (datetime('now', 'localtime')),
-        FOREIGN KEY (fund_code) REFERENCES fund_info(fund_code)
+    CREATE TABLE IF NOT EXISTS trade_records (
+        record_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_code           TEXT,
+        fund_name           TEXT,
+        record_type         TEXT,
+        record_date         TEXT,
+        signal_type         TEXT,
+        trigger_condition   TEXT,
+        trigger_value       REAL,
+        suggested_action    TEXT,
+        exec_status         TEXT DEFAULT '待执行',
+        exec_date           TEXT,
+        actual_action       TEXT,
+        platform            TEXT,
+        amount              REAL,
+        shares              REAL,
+        nav                 REAL,
+        fee                 REAL DEFAULT 0,
+        note                TEXT,
+        created_at          TEXT DEFAULT (datetime('now', 'localtime'))
     );
     """)
 
     # ===== 创建索引 =====
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_quotes_date ON daily_quotes(date);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_quotes_fund ON daily_quotes(fund_code);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(tx_date);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_fund ON transactions(fund_code);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_signals_date ON trade_signals(signal_date);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_signals_fund ON trade_signals(fund_code);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_signals_status ON trade_signals(exec_status);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dca_plans_active ON dca_plans(end_date, is_active);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trading_rules_category ON trading_rules(fund_category);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trading_rules_active ON trading_rules(is_active);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_records_date ON trade_records(record_date);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_records_fund ON trade_records(fund_code);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_records_status ON trade_records(exec_status);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_records_type ON trade_records(record_type);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_fund_holdings_code ON fund_holdings(fund_code);")
 
     conn.commit()
 
     # 验证建表结果
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
     tables = [row[0] for row in cursor.fetchall()]
-    print(f"数据库已创建: {DB_PATH}")
+    print(f"数据库路径: {DB_PATH}")
     print(f"共 {len(tables)} 张表: {', '.join(tables)}")
 
     for table in tables:
-        cursor.execute(f"PRAGMA table_info({table});")
+        cursor.execute(f"PRAGMA table_info([{table}]);")
         cols = cursor.fetchall()
-        print(f"\n  [{table}] ({len(cols)} 列)")
+        cursor.execute(f"SELECT COUNT(*) FROM [{table}];")
+        count = cursor.fetchone()[0]
+        print(f"\n  [{table}] ({len(cols)} 列, {count} 条记录)")
         for col in cols:
             print(f"    {col[1]:25s} {col[2]:10s} {'PK' if col[5] else ''}")
 
