@@ -1,0 +1,39 @@
+name: 每日获取ETF净值
+
+on:
+  # 定时触发：工作日 21:00 UTC+8 (13:00 UTC)
+  schedule:
+    - cron: '0 13 * * 1-5'  # 周一到周五 13:00 UTC = 21:00 北京时间
+  
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  fetch-quotes:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 安装依赖
+      run: |
+        pip install akshare requests
+    
+    - name: 运行爬取脚本
+      run: |
+        python scripts/fetch_daily_quotes.py
+    
+    - name: 上传日志
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fetch-logs
+        path: log/fetch_quotes.log
+        retention-days: 7

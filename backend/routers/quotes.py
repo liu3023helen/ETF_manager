@@ -20,10 +20,10 @@ def list_quotes(
         where += " AND q.fund_code=?"
         params.append(fund_code)
     if date_from:
-        where += " AND q.date>=?"
+        where += " AND q.quote_date>=?"
         params.append(date_from)
     if date_to:
-        where += " AND q.date<=?"
+        where += " AND q.quote_date<=?"
         params.append(date_to)
 
     # 总记录数
@@ -34,10 +34,9 @@ def list_quotes(
 
     # 分页查询
     sql = (
-        "SELECT q.*, f.fund_name FROM daily_quotes q "
-        "LEFT JOIN fund_info f ON q.fund_code=f.fund_code"
+        "SELECT q.* FROM daily_quotes q "
         + where
-        + " ORDER BY q.date DESC, q.fund_code"
+        + " ORDER BY q.quote_date DESC, q.fund_code"
         + " LIMIT ? OFFSET ?"
     )
     offset = (page - 1) * page_size

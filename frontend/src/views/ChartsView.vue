@@ -59,12 +59,12 @@ const loadQuotes = async () => {
 const navChartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   grid: { left: 60, right: 30, top: 20, bottom: 60 },
-  xAxis: { type: 'category', data: quotes.value.map(q => q.date) },
+  xAxis: { type: 'category', data: quotes.value.map(q => q.quote_date) },
   yAxis: { type: 'value', name: '净值', scale: true },
   dataZoom: [{ type: 'inside' }, { type: 'slider' }],
   series: [{
     type: 'line', smooth: true, symbol: 'circle', symbolSize: 4,
-    data: quotes.value.map(q => q.nav),
+    data: quotes.value.map(q => q.close_price),
     lineStyle: { color: '#0052d9' },
     itemStyle: { color: '#0052d9' },
     areaStyle: { color: 'rgba(0,82,217,0.08)' },
@@ -74,7 +74,7 @@ const navChartOption = computed(() => ({
 const pnlChartOption = computed(() => ({
   tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].name}<br/>盈亏: ¥${p[0].value}` },
   grid: { left: 60, right: 30, top: 20, bottom: 30 },
-  xAxis: { type: 'category', data: quotes.value.map(q => q.date) },
+  xAxis: { type: 'category', data: quotes.value.map(q => q.quote_date) },
   yAxis: { type: 'value', name: '盈亏(元)' },
   series: [{
     type: 'bar',

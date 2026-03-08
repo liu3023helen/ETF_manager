@@ -44,7 +44,7 @@
           :data="tableData.data"
           :columns="tableColumns"
           :loading="loading"
-          row-key="index"
+          row-key="quote_id"
           :sort="currentSort"
           @sort-change="onSortChange"
           stripe
@@ -205,10 +205,14 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   last_update_date: '最后更新日期',
 
   // daily_quotes
-  date: '日期',
-  nav: '单位净值',
+  quote_id: '记录ID',
+  quote_date: '净值日期',
+  open_price: '开盘净值',
+  high_price: '最高净值',
+  low_price: '最低净值',
+  close_price: '收盘净值',
   acc_nav: '累计净值',
-  daily_change_pct: '日涨跌幅',
+  daily_change_pct: '日涨跌幅', // 保留，尽管新表没存，但如果是计算字段可能用到
   daily_value: '日市值',
   daily_pnl: '日盈亏',
 
@@ -241,7 +245,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
 const DEFAULT_SORT_MAP: Record<string, { sortBy: string; descending: boolean }> = {
   fund_info: { sortBy: 'fund_code', descending: false },
   fund_holdings: { sortBy: 'fund_code', descending: false },
-  daily_quotes: { sortBy: 'date', descending: false },
+  daily_quotes: { sortBy: 'quote_date', descending: true },
   trading_rules: { sortBy: 'fund_category', descending: false },
   trade_records: { sortBy: 'record_date', descending: true },
 }
@@ -325,23 +329,26 @@ async function fetchData() {
   tableData.columns = res.data.columns
   tableData.data = res.data.data
 
-  // 动态生成列配置
-  tableColumns.value = res.data.columns.map((col: string) => {
-    const config: any = {
-      colKey: col,
-      title: getBilingualColumnTitle(col),
-      sortable: true,
-      ellipsis: true,
-      width: getColumnWidth(col),
-    }
+  // 动态生成列配置，排除不需要显示的列
+  const HIDDEN_COLUMNS = ['quote_id'] // 隐藏主键列
+  tableColumns.value = res.data.columns
+    .filter((col: string) => !HIDDEN_COLUMNS.includes(col))
+    .map((col: string) => {
+      const config: any = {
+        colKey: col,
+        title: getBilingualColumnTitle(col),
+        sortable: true,
+        ellipsis: true,
+        width: getColumnWidth(col),
+      }
 
-    // 为有单位映射的字段添加格式化
-    if (FIELD_UNIT_MAP[col]) {
-      const unit = FIELD_UNIT_MAP[col]
-      config.cell = (_h: any, { row }: any) => formatWithUnit(row[col], unit)
-    }
-    return config
-  })
+      // 为有单位映射的字段添加格式化
+      if (FIELD_UNIT_MAP[col]) {
+        const unit = FIELD_UNIT_MAP[col]
+        config.cell = (_h: any, { row }: any) => formatWithUnit(row[col], unit)
+      }
+      return config
+    })
 
   loading.value = false
 }

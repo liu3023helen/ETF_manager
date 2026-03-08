@@ -31,6 +31,7 @@ def ensure_single_instance_or_exit():
     if conflicts:
         print("[错误] 检测到已有实例正在运行：" + "、".join(conflicts))
         print("请先关闭旧的 start.py/uvicorn/vite 进程，再重新启动。")
+        input("按回车键退出...")
         sys.exit(1)
 
 
