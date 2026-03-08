@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-5">
     <!-- 表选择卡片 -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+    <div class="flex gap-3 h-28">
       <div
         v-for="table in tables"
         :key="table.name"
         @click="selectTable(table.name)"
         :class="[
-          'rounded-lg p-4 cursor-pointer transition-all duration-200 border-2',
+          'w-40 rounded-lg p-4 cursor-pointer transition-all duration-200 border-2 flex-shrink-0',
           activeTable === table.name
             ? 'border-blue-500 bg-blue-50 shadow-md'
             : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm',
@@ -76,12 +76,12 @@
 
     <!-- SQL 执行区域 -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 space-y-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <t-button theme="primary" :loading="sqlLoading" @click="runSql">执行 SQL</t-button>
         <div>
           <div class="font-semibold text-gray-700">SQL 查询</div>
           <div class="text-xs text-gray-400 mt-1">仅支持只读查询（SELECT / DESC），每次执行一条语句</div>
         </div>
-        <t-button theme="primary" :loading="sqlLoading" @click="runSql">执行 SQL</t-button>
       </div>
 
       <textarea
