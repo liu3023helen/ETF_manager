@@ -9,7 +9,6 @@ import sys
 import os
 import sqlite3
 import logging
-import math
 from datetime import datetime, timedelta
 from typing import List, Optional
 

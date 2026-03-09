@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 from ..database import get_db
 from ..models import TradingRule
 from ..schemas import TradingRule as TradingRuleSchema, TradingRuleCreate
@@ -26,6 +27,7 @@ def list_rules(
 
 @router.post("")
 def create_rule(rule: TradingRuleCreate, db: Session = Depends(get_db)):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_rule = TradingRule(
         fund_category=rule.fund_category,
         rule_type=rule.rule_type,
@@ -33,7 +35,9 @@ def create_rule(rule: TradingRuleCreate, db: Session = Depends(get_db)):
         threshold=rule.threshold,
         action_desc=rule.action_desc,
         priority=rule.priority,
-        is_active=1
+        is_active=1,
+        created_at=now,
+        updated_at=now,
     )
     db.add(new_rule)
     db.commit()
@@ -55,6 +59,7 @@ def update_rule(
     existing_rule.threshold = rule.threshold
     existing_rule.action_desc = rule.action_desc
     existing_rule.priority = rule.priority
+    existing_rule.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     db.commit()
     return {"message": "交易规则更新成功"}

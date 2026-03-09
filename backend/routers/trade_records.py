@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import Optional
+from datetime import datetime
 from ..database import get_db
 from ..models import TradeRecord, FundHolding, FundInfo
 from ..schemas import TradeRecordCreate
@@ -170,6 +170,7 @@ def create_record(
             nav=record.nav,
             fee=record.fee,
             note=record.note,
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
         db.add(new_record)
 

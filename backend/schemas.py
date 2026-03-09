@@ -39,6 +39,11 @@ class HoldingDetail(BaseModel):
     last_update_date: Optional[str] = Field(default=None, alias="nav_date")
     risk_level: Optional[str] = None
     
+    # 盈亏相关
+    holding_value: Optional[float] = None
+    profit_loss_amount: Optional[float] = None
+    return_rate: Optional[float] = None
+
     # Optional DCA fields
     dca_is_active: Optional[int] = None
     dca_frequency: Optional[str] = None
@@ -54,11 +59,11 @@ class DailyQuote(BaseModel):
     fund_code: str
     fund_name: Optional[str] = None
     quote_date: str = Field(alias="date")
+    open_price: Optional[float] = None
+    high_price: Optional[float] = None
+    low_price: Optional[float] = None
     close_price: Optional[float] = Field(default=None, alias="nav")
     acc_nav: Optional[float] = None
-    daily_change_pct: Optional[float] = None
-    daily_value: Optional[float] = None
-    daily_pnl: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -138,3 +143,4 @@ class DashboardSummary(BaseModel):
     fund_count: int = 0
     category_distribution: List[dict] = []
     platform_distribution: List[dict] = []
+    pending_records: int = 0

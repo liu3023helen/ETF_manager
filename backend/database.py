@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 import sys
 import os
@@ -14,9 +15,6 @@ engine = create_engine(
 )
 
 # Enable foreign key support for sqlite on each connection
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()

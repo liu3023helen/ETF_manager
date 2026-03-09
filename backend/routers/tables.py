@@ -25,7 +25,7 @@ TABLE_NAME_MAP = {}
 DEFAULT_SORT = {
     "fund_info": "fund_code ASC",
     "fund_holdings": "fund_code ASC",
-    "daily_quotes": "date ASC, fund_code ASC",
+    "daily_quotes": "quote_date ASC, fund_code ASC",
     "trading_rules": "fund_category ASC, rule_type ASC, priority ASC, rule_id ASC",
     "trade_records": "record_date DESC, record_id DESC",
 }
@@ -72,6 +72,9 @@ def sanitize_identifier(identifier: str) -> str:
 
 def normalize_sql(sql: str) -> str:
     """清理 SQL：移除注释、去除前后空白与末尾分号。"""
+    # 移除 /* ... */ 块注释
+    sql = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
+    
     # 移除 -- 注释，兼容多行输入
     lines = []
     for line in sql.splitlines():
@@ -258,8 +261,8 @@ def get_table_data(
     if sort_by and sort_by in valid_columns:
         direction = "DESC" if sort_order == "desc" else "ASC"
         order_clause = f"ORDER BY [{sort_by}] {direction}"
-        # daily_quotes 按 date 排序时，追加 fund_code 作为次级排序
-        if table_name == "daily_quotes" and sort_by == "date":
+        # daily_quotes 按 quote_date 排序时，追加 fund_code 作为次级排序
+        if table_name == "daily_quotes" and sort_by == "quote_date":
             order_clause += ", [fund_code] ASC"
     elif table_name in DEFAULT_SORT:
         order_clause = f"ORDER BY {DEFAULT_SORT[table_name]}"
@@ -269,9 +272,9 @@ def get_table_data(
     # 分页
     offset = (page - 1) * page_size
 
-    # daily_quotes 表：用 ROW_NUMBER() 生成连续递增的 id，替代原始 id
+    # daily_quotes 表：用 ROW_NUMBER() 生成连续递增的 id，替代原始 quote_id
     if table_name == "daily_quotes":
-        non_id_cols = [c for c in ordered_columns if c != "id"]
+        non_id_cols = [c for c in ordered_columns if c != "quote_id"]
         cols_str = ", ".join(f"[{c}]" for c in non_id_cols)
         query = (
             f"SELECT ROW_NUMBER() OVER ({order_clause}) AS id, {cols_str} "
