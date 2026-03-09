@@ -4,7 +4,7 @@ import re
 import sqlite3
 
 
-from ..database import get_db
+from ..database import get_raw_db
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
 
@@ -89,7 +89,7 @@ def normalize_sql(sql: str) -> str:
 
 
 @router.get("")
-def list_tables(conn: sqlite3.Connection = Depends(get_db)):
+def list_tables(conn: sqlite3.Connection = Depends(get_raw_db)):
 
     """获取所有可查看的表及其记录数
 
@@ -125,7 +125,7 @@ def list_tables(conn: sqlite3.Connection = Depends(get_db)):
 @router.post("/execute-sql")
 def execute_sql(
     payload: dict = Body(...),
-    conn: sqlite3.Connection = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_raw_db),
 ):
     """执行只读 SQL（仅支持 SELECT / DESC）。"""
     raw_sql = str(payload.get("sql", ""))
@@ -231,7 +231,7 @@ def get_table_data(
     page_size: int = Query(50, ge=1, le=500),
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = Query(None, regex="^(asc|desc)$"),
-    conn: sqlite3.Connection = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_raw_db),
 ):
     """获取指定表的数据（分页）"""
     if table_name not in ALLOWED_TABLES:

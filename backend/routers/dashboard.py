@@ -1,67 +1,59 @@
 from fastapi import APIRouter, Depends
-import sqlite3
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 from ..database import get_db
+from ..models import FundHolding, FundInfo, TradeRecord
+from ..schemas import DashboardSummary
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-@router.get("/summary")
-def get_summary(db: sqlite3.Connection = Depends(get_db)):
+@router.get("/summary", response_model=DashboardSummary)
+def get_summary(db: Session = Depends(get_db)):
     # 总资产、总投入、总盈亏
-    row = db.execute(
-        "SELECT COALESCE(SUM(holding_value), 0) as total_assets, "
-        "COALESCE(SUM(invested_capital), 0) as total_invested, "
-        "COALESCE(SUM(profit_loss_amount), 0) as total_pnl "
-        "FROM fund_holdings"
-    ).fetchone()
-
-    total_assets = row["total_assets"]
-    total_invested = row["total_invested"]
-    total_pnl = row["total_pnl"]
+    total_assets = db.query(func.coalesce(func.sum(FundHolding.holding_value), 0)).scalar() or 0
+    total_invested = db.query(func.coalesce(func.sum(FundHolding.invested_capital), 0)).scalar() or 0
+    total_pnl = db.query(func.coalesce(func.sum(FundHolding.profit_loss_amount), 0)).scalar() or 0
+    
     pnl_rate = (total_pnl / total_invested * 100) if total_invested > 0 else 0
 
     # 持仓基金数
-    fund_count = db.execute(
-        "SELECT COUNT(DISTINCT fund_code) as cnt FROM fund_holdings WHERE holding_shares > 0"
-    ).fetchone()["cnt"]
+    fund_count = db.query(func.count(func.distinct(FundHolding.fund_code))).filter(FundHolding.holding_shares > 0).scalar() or 0
 
     # 按分类分布 (市值)
-    cat_rows = db.execute(
-        "SELECT COALESCE(f.fund_category, '其他') as category, "
-        "SUM(h.holding_value) as value "
-        "FROM fund_holdings h LEFT JOIN fund_info f ON h.fund_code=f.fund_code "
-        "GROUP BY f.fund_category ORDER BY value DESC"
-    ).fetchall()
+    cat_rows = db.query(
+        func.coalesce(FundInfo.fund_category, '其他').label('category'),
+        func.sum(FundHolding.holding_value).label('value')
+    ).outerjoin(FundInfo, FundHolding.fund_code == FundInfo.fund_code).group_by(
+        func.coalesce(FundInfo.fund_category, '其他')
+    ).order_by(func.sum(FundHolding.holding_value).desc()).all()
+    
     category_distribution = [
-        {"category": r["category"] or "其他", "value": round(r["value"] or 0, 2)}
+        {"category": r.category, "value": round(r.value or 0, 2)}
         for r in cat_rows
     ]
 
     # 按平台分布 (市值)
-    plat_rows = db.execute(
-        "SELECT platform, SUM(holding_value) as value "
-        "FROM fund_holdings GROUP BY platform ORDER BY value DESC"
-    ).fetchall()
+    plat_rows = db.query(
+        FundHolding.platform,
+        func.sum(FundHolding.holding_value).label('value')
+    ).group_by(FundHolding.platform).order_by(func.sum(FundHolding.holding_value).desc()).all()
+    
     platform_distribution = [
-        {"platform": r["platform"], "value": round(r["value"] or 0, 2)}
+        {"platform": r.platform, "value": round(r.value or 0, 2)}
         for r in plat_rows
     ]
 
     # 待执行记录数
-    try:
-        pending_count = db.execute(
-            "SELECT COUNT(*) as cnt FROM trade_records WHERE exec_status='待执行'"
-        ).fetchone()["cnt"]
-    except sqlite3.OperationalError:
-        pending_count = 0
+    pending_count = db.query(TradeRecord).filter(TradeRecord.exec_status == '待执行').count()
 
-    return {
-        "total_assets": round(total_assets, 2),
-        "total_invested": round(total_invested, 2),
-        "total_pnl": round(total_pnl, 2),
-        "pnl_rate": round(pnl_rate, 2),
-        "fund_count": fund_count,
-        "category_distribution": category_distribution,
-        "platform_distribution": platform_distribution,
-        "pending_records": pending_count,
-    }
+    return DashboardSummary(
+        total_assets=round(total_assets, 2),
+        total_invested=round(total_invested, 2),
+        total_pnl=round(total_pnl, 2),
+        pnl_rate=round(pnl_rate, 2),
+        fund_count=fund_count,
+        category_distribution=category_distribution,
+        platform_distribution=platform_distribution,
+        pending_records=pending_count,
+    )

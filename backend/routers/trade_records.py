@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
-import sqlite3
 from ..database import get_db
-from ..models import TradeRecordCreate
+from ..models import TradeRecord, FundHolding, FundInfo
+from ..schemas import TradeRecordCreate
 from ..services.holding_service import apply_transaction
 
 router = APIRouter(prefix="/api/trade-records", tags=["trade_records"])
@@ -18,64 +20,104 @@ def list_records(
     date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
-    db: sqlite3.Connection = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """列出交易记录（支持筛选和分页）"""
-    base_sql = "FROM trade_records WHERE 1=1"
-    params = []
+    query = db.query(TradeRecord, FundInfo).outerjoin(FundInfo, TradeRecord.fund_code == FundInfo.fund_code)
 
     if fund_code:
-        base_sql += " AND fund_code=?"
-        params.append(fund_code)
+        query = query.filter(TradeRecord.fund_code == fund_code)
     if record_type:
-        base_sql += " AND record_type=?"
-        params.append(record_type)
+        query = query.filter(TradeRecord.record_type == record_type)
     if signal_type:
-        base_sql += " AND signal_type=?"
-        params.append(signal_type)
+        query = query.filter(TradeRecord.signal_type == signal_type)
     if exec_status:
-        base_sql += " AND exec_status=?"
-        params.append(exec_status)
+        query = query.filter(TradeRecord.exec_status == exec_status)
     if date_from:
-        base_sql += " AND record_date>=?"
-        params.append(date_from)
+        query = query.filter(TradeRecord.record_date >= date_from)
     if date_to:
-        base_sql += " AND record_date<=?"
-        params.append(date_to)
+        query = query.filter(TradeRecord.record_date <= date_to)
 
     # 总数
-    total = db.execute(f"SELECT COUNT(*) as cnt {base_sql}", params).fetchone()["cnt"]
+    total = query.count()
 
     # 分页查询
     offset = (page - 1) * page_size
-    rows = db.execute(
-        f"SELECT * {base_sql} ORDER BY record_date DESC, record_id DESC LIMIT ? OFFSET ?",
-        params + [page_size, offset],
-    ).fetchall()
+    query = query.order_by(TradeRecord.record_date.desc(), TradeRecord.record_id.desc())
+    rows = query.offset(offset).limit(page_size).all()
+    
+    data = []
+    for record, fund_info in rows:
+        item = {
+            "record_id": record.record_id,
+            "fund_code": record.fund_code,
+            "fund_name": fund_info.fund_name if fund_info else None,
+            "record_type": record.record_type,
+            "record_date": record.record_date,
+            "signal_type": record.signal_type,
+            "trigger_condition": record.trigger_condition,
+            "trigger_value": record.trigger_value,
+            "suggested_action": record.suggested_action,
+            "exec_status": record.exec_status,
+            "exec_date": record.exec_date,
+            "actual_action": record.actual_action,
+            "platform": record.platform,
+            "amount": record.amount,
+            "shares": record.shares,
+            "nav": record.nav,
+            "fee": record.fee,
+            "note": record.note,
+            "created_at": record.created_at,
+        }
+        data.append(item)
 
     return {
         "total": total,
         "page": page,
         "page_size": page_size,
-        "data": [dict(r) for r in rows],
+        "data": data,
     }
 
 
 @router.get("/{record_id}")
-def get_record(record_id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_record(record_id: int, db: Session = Depends(get_db)):
     """获取单条交易记录"""
-    row = db.execute(
-        "SELECT * FROM trade_records WHERE record_id=?", (record_id,)
-    ).fetchone()
-    if not row:
+    result = db.query(TradeRecord, FundInfo).outerjoin(
+        FundInfo, TradeRecord.fund_code == FundInfo.fund_code
+    ).filter(TradeRecord.record_id == record_id).first()
+    
+    if not result:
         raise HTTPException(status_code=404, detail="记录不存在")
-    return dict(row)
+        
+    record, fund_info = result
+    
+    return {
+        "record_id": record.record_id,
+        "fund_code": record.fund_code,
+        "fund_name": fund_info.fund_name if fund_info else None,
+        "record_type": record.record_type,
+        "record_date": record.record_date,
+        "signal_type": record.signal_type,
+        "trigger_condition": record.trigger_condition,
+        "trigger_value": record.trigger_value,
+        "suggested_action": record.suggested_action,
+        "exec_status": record.exec_status,
+        "exec_date": record.exec_date,
+        "actual_action": record.actual_action,
+        "platform": record.platform,
+        "amount": record.amount,
+        "shares": record.shares,
+        "nav": record.nav,
+        "fee": record.fee,
+        "note": record.note,
+        "created_at": record.created_at,
+    }
 
 
 @router.post("")
 def create_record(
     record: TradeRecordCreate,
-    db: sqlite3.Connection = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """创建交易记录，并根据记录类型联动更新持仓"""
     try:
@@ -92,12 +134,9 @@ def create_record(
 
             # 平台判定：优先请求值，否则尝试从持仓推断
             if not platform:
-                rows = db.execute(
-                    "SELECT DISTINCT platform FROM fund_holdings WHERE fund_code=?",
-                    (record.fund_code,),
-                ).fetchall()
+                rows = db.query(FundHolding.platform).filter(FundHolding.fund_code == record.fund_code).distinct().all()
                 if len(rows) == 1:
-                    platform = rows[0]["platform"]
+                    platform = rows[0][0]
                 elif len(rows) > 1:
                     raise HTTPException(status_code=400, detail="该基金存在多个平台持仓，请指定 platform")
                 else:
@@ -105,42 +144,34 @@ def create_record(
 
             # 卖出时校验可卖份额
             if record.record_type == "卖出":
-                holding = db.execute(
-                    "SELECT holding_shares FROM fund_holdings WHERE fund_code=? AND platform=? LIMIT 1",
-                    (record.fund_code, platform),
-                ).fetchone()
-                if not holding or (holding["holding_shares"] or 0) <= 0:
+                holding = db.query(FundHolding).filter(
+                    FundHolding.fund_code == record.fund_code,
+                    FundHolding.platform == platform
+                ).first()
+                if not holding or (holding.holding_shares or 0) <= 0:
                     raise HTTPException(status_code=400, detail="当前平台无可卖持仓")
-                if record.shares > (holding["holding_shares"] or 0):
+                if record.shares > (holding.holding_shares or 0):
                     raise HTTPException(status_code=400, detail="卖出份额不能超过当前持仓份额")
 
-        cursor = db.execute(
-            "INSERT INTO trade_records "
-            "(fund_code, fund_name, record_type, record_date, platform, "
-            "signal_type, trigger_condition, trigger_value, suggested_action, "
-            "exec_status, exec_date, actual_action, "
-            "amount, shares, nav, fee, note, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))",
-            (
-                record.fund_code,
-                record.fund_name,
-                record.record_type,
-                record.record_date,
-                platform,
-                record.signal_type,
-                record.trigger_condition,
-                record.trigger_value,
-                record.suggested_action,
-                record.exec_status,
-                record.exec_date,
-                record.actual_action,
-                record.amount,
-                record.shares,
-                record.nav,
-                record.fee,
-                record.note,
-            ),
+        new_record = TradeRecord(
+            fund_code=record.fund_code,
+            record_type=record.record_type,
+            record_date=record.record_date,
+            platform=platform,
+            signal_type=record.signal_type,
+            trigger_condition=record.trigger_condition,
+            trigger_value=record.trigger_value,
+            suggested_action=record.suggested_action,
+            exec_status=record.exec_status,
+            exec_date=record.exec_date,
+            actual_action=record.actual_action,
+            amount=record.amount,
+            shares=record.shares,
+            nav=record.nav,
+            fee=record.fee,
+            note=record.note,
         )
+        db.add(new_record)
 
         # 如果是实际交易类型（买入/卖出/定投），联动更新 fund_holdings
         if record.record_type in ("买入", "卖出", "定投"):
@@ -155,7 +186,8 @@ def create_record(
             )
 
         db.commit()
-        return {"record_id": cursor.lastrowid, "message": "记录创建成功"}
+        db.refresh(new_record)
+        return {"record_id": new_record.record_id, "message": "记录创建成功"}
     except HTTPException:
         db.rollback()
         raise
@@ -168,13 +200,11 @@ def create_record(
 def update_record(
     record_id: int,
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """更新交易记录（部分字段）"""
-    row = db.execute(
-        "SELECT * FROM trade_records WHERE record_id=?", (record_id,)
-    ).fetchone()
-    if not row:
+    record = db.query(TradeRecord).filter(TradeRecord.record_id == record_id).first()
+    if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
 
     # 允许更新的字段白名单
@@ -183,33 +213,26 @@ def update_record(
         "amount", "shares", "nav", "fee", "note",
     }
 
-    updates = []
-    values = []
+    updated = False
     for key, val in payload.items():
         if key in allowed_fields:
-            updates.append(f"[{key}]=?")
-            values.append(val)
+            setattr(record, key, val)
+            updated = True
 
-    if not updates:
+    if not updated:
         raise HTTPException(status_code=400, detail="没有可更新的字段")
 
-    values.append(record_id)
-    db.execute(
-        f"UPDATE trade_records SET {', '.join(updates)} WHERE record_id=?",
-        values,
-    )
     db.commit()
     return {"message": "记录已更新"}
 
 
 @router.delete("/{record_id}")
-def delete_record(record_id: int, db: sqlite3.Connection = Depends(get_db)):
+def delete_record(record_id: int, db: Session = Depends(get_db)):
     """删除交易记录"""
-    row = db.execute(
-        "SELECT record_id FROM trade_records WHERE record_id=?", (record_id,)
-    ).fetchone()
-    if not row:
+    record = db.query(TradeRecord).filter(TradeRecord.record_id == record_id).first()
+    if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
-    db.execute("DELETE FROM trade_records WHERE record_id=?", (record_id,))
+        
+    db.delete(record)
     db.commit()
     return {"message": "记录已删除"}

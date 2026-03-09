@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
-import sqlite3
+from sqlalchemy.orm import Session
 from ..database import get_db
+from ..models import DailyQuote, FundInfo
 
 router = APIRouter(prefix="/api/quotes", tags=["quotes"])
 
@@ -12,39 +13,43 @@ def list_quotes(
     date_to: str = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    db: sqlite3.Connection = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    where = " WHERE 1=1"
-    params = []
+    query = db.query(DailyQuote, FundInfo).outerjoin(
+        FundInfo, DailyQuote.fund_code == FundInfo.fund_code
+    )
+    
     if fund_code:
-        where += " AND q.fund_code=?"
-        params.append(fund_code)
+        query = query.filter(DailyQuote.fund_code == fund_code)
     if date_from:
-        where += " AND q.quote_date>=?"
-        params.append(date_from)
+        query = query.filter(DailyQuote.quote_date >= date_from)
     if date_to:
-        where += " AND q.quote_date<=?"
-        params.append(date_to)
+        query = query.filter(DailyQuote.quote_date <= date_to)
 
-    # 总记录数
-    count_sql = (
-        "SELECT COUNT(*) FROM daily_quotes q" + where
-    )
-    total = db.execute(count_sql, params).fetchone()[0]
+    total = query.count()
 
-    # 分页查询
-    sql = (
-        "SELECT q.* FROM daily_quotes q "
-        + where
-        + " ORDER BY q.quote_date DESC, q.fund_code"
-        + " LIMIT ? OFFSET ?"
-    )
+    query = query.order_by(DailyQuote.quote_date.desc(), DailyQuote.fund_code)
+    
     offset = (page - 1) * page_size
-    rows = db.execute(sql, params + [page_size, offset]).fetchall()
+    query = query.limit(page_size).offset(offset)
+    
+    rows = query.all()
+    
+    data = []
+    for quote, fund_info in rows:
+        item = {
+            "id": quote.quote_id,
+            "fund_code": quote.fund_code,
+            "fund_name": fund_info.fund_name if fund_info else None,
+            "date": quote.quote_date,
+            "nav": quote.close_price,
+            "acc_nav": quote.acc_nav,
+        }
+        data.append(item)
 
     return {
         "total": total,
         "page": page,
         "page_size": page_size,
-        "data": [dict(r) for r in rows],
+        "data": data,
     }

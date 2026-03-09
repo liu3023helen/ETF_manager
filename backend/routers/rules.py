@@ -1,85 +1,71 @@
 from fastapi import APIRouter, Depends, HTTPException
-import sqlite3
+from sqlalchemy.orm import Session
+from typing import List
 from ..database import get_db
-from ..models import TradingRuleCreate
+from ..models import TradingRule
+from ..schemas import TradingRule as TradingRuleSchema, TradingRuleCreate
 
 router = APIRouter(prefix="/api/rules", tags=["rules"])
 
 
-@router.get("")
+@router.get("", response_model=List[TradingRuleSchema])
 def list_rules(
     category: str = None,
     rule_type: str = None,
-    db: sqlite3.Connection = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    sql = "SELECT * FROM trading_rules WHERE 1=1"
-    params = []
+    query = db.query(TradingRule)
     if category:
-        sql += " AND fund_category=?"
-        params.append(category)
+        query = query.filter(TradingRule.fund_category == category)
     if rule_type:
-        sql += " AND rule_type=?"
-        params.append(rule_type)
-    sql += " ORDER BY fund_category, priority, rule_id"
-    rows = db.execute(sql, params).fetchall()
-    return [dict(r) for r in rows]
+        query = query.filter(TradingRule.rule_type == rule_type)
+        
+    query = query.order_by(TradingRule.fund_category, TradingRule.priority, TradingRule.rule_id)
+    return query.all()
 
 
 @router.post("")
-def create_rule(rule: TradingRuleCreate, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.execute(
-        "INSERT INTO trading_rules (fund_category, rule_type, condition_desc, threshold, action_desc, priority) "
-        "VALUES (?,?,?,?,?,?)",
-        (
-            rule.fund_category,
-            rule.rule_type,
-            rule.condition_desc,
-            rule.threshold,
-            rule.action_desc,
-            rule.priority,
-        ),
+def create_rule(rule: TradingRuleCreate, db: Session = Depends(get_db)):
+    new_rule = TradingRule(
+        fund_category=rule.fund_category,
+        rule_type=rule.rule_type,
+        condition_desc=rule.condition_desc,
+        threshold=rule.threshold,
+        action_desc=rule.action_desc,
+        priority=rule.priority,
+        is_active=1
     )
+    db.add(new_rule)
     db.commit()
-    return {"rule_id": cursor.lastrowid, "message": "交易规则创建成功"}
+    db.refresh(new_rule)
+    return {"rule_id": new_rule.rule_id, "message": "交易规则创建成功"}
 
 
 @router.put("/{rule_id}")
 def update_rule(
-    rule_id: int, rule: TradingRuleCreate, db: sqlite3.Connection = Depends(get_db)
+    rule_id: int, rule: TradingRuleCreate, db: Session = Depends(get_db)
 ):
-    row = db.execute(
-        "SELECT rule_id FROM trading_rules WHERE rule_id=?", (rule_id,)
-    ).fetchone()
-    if not row:
+    existing_rule = db.query(TradingRule).filter(TradingRule.rule_id == rule_id).first()
+    if not existing_rule:
         raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
-    db.execute(
-        "UPDATE trading_rules SET fund_category=?, rule_type=?, condition_desc=?, "
-        "threshold=?, action_desc=?, priority=? WHERE rule_id=?",
-        (
-            rule.fund_category,
-            rule.rule_type,
-            rule.condition_desc,
-            rule.threshold,
-            rule.action_desc,
-            rule.priority,
-            rule_id,
-        ),
-    )
+        
+    existing_rule.fund_category = rule.fund_category
+    existing_rule.rule_type = rule.rule_type
+    existing_rule.condition_desc = rule.condition_desc
+    existing_rule.threshold = rule.threshold
+    existing_rule.action_desc = rule.action_desc
+    existing_rule.priority = rule.priority
+    
     db.commit()
     return {"message": "交易规则更新成功"}
 
 
 @router.patch("/{rule_id}/toggle")
-def toggle_rule(rule_id: int, db: sqlite3.Connection = Depends(get_db)):
-    row = db.execute(
-        "SELECT rule_id FROM trading_rules WHERE rule_id=?", (rule_id,)
-    ).fetchone()
-    if not row:
+def toggle_rule(rule_id: int, db: Session = Depends(get_db)):
+    existing_rule = db.query(TradingRule).filter(TradingRule.rule_id == rule_id).first()
+    if not existing_rule:
         raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
-    db.execute(
-        "UPDATE trading_rules SET is_active = CASE WHEN is_active=1 THEN 0 ELSE 1 END "
-        "WHERE rule_id=?",
-        (rule_id,),
-    )
+        
+    existing_rule.is_active = 0 if existing_rule.is_active == 1 else 1
     db.commit()
     return {"message": "交易规则状态已切换"}
