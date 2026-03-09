@@ -196,11 +196,10 @@ def save_quote(conn: sqlite3.Connection, fund_code: str, fund_name: str, data: d
     try:
         conn.execute("""
             INSERT OR REPLACE INTO daily_quotes 
-            (fund_code, fund_name, quote_date, open_price, high_price, low_price, close_price, acc_nav)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             fund_code,
-            fund_name,
             data['quote_date'],
             data['open_price'],
             data['high_price'],
@@ -223,8 +222,10 @@ def save_quote(conn: sqlite3.Connection, fund_code: str, fund_name: str, data: d
 
 def fetch_all_quotes(force_update: bool = False):
     """
-    获取所有持仓基金的最新净值
+    获取所有持仓基金的最新净值 (多线程并发版本)
     """
+    import concurrent.futures
+
     logger.info("=" * 50)
     logger.info(f"开始获取ETF行情 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 50)
@@ -244,11 +245,11 @@ def fetch_all_quotes(force_update: bool = False):
         success_count = 0
         skip_count = 0
         fail_count = 0
-        
-        for fund in funds:
+
+        # 定义单只基金的抓取逻辑
+        def process_fund(fund):
             fund_code = fund['fund_code']
             fund_name = fund['fund_name']
-            
             data = None
             
             # 场内基金 (15/51/56/58 开头) 优先尝试新浪 (实时价格)
@@ -263,6 +264,26 @@ def fetch_all_quotes(force_update: bool = False):
                 # 备选新浪 (虽通常不支持场外)
                 if data is None:
                     data = fetch_fund_nav_sina(fund_code)
+                    
+            return fund, data
+
+        # 使用线程池并发拉取
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_fund = {executor.submit(process_fund, fund): fund for fund in funds}
+            for future in concurrent.futures.as_completed(future_to_fund):
+                try:
+                    fund, data = future.result()
+                    results.append((fund, data))
+                except Exception as exc:
+                    fund = future_to_fund[future]
+                    logger.error(f"✗ [{fund['fund_code']}] {fund['fund_name']} - 并发执行产生异常: {exc}")
+                    results.append((fund, None))
+
+        # 统一写数据库以避免并发写入冲突
+        for fund, data in results:
+            fund_code = fund['fund_code']
+            fund_name = fund['fund_name']
             
             if data is None:
                 logger.error(f"✗ [{fund_code}] {fund_name} - 获取数据失败")
@@ -332,9 +353,9 @@ def fetch_history_quotes(fund_code: str, days: int = 60):
                 
                 # 历史数据只有单一净值，没有 OHLC
                 conn.execute("""
-                    INSERT INTO daily_quotes (fund_code, fund_name, quote_date, open_price, high_price, low_price, close_price, acc_nav)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (fund_code, fund_name, date_str, nav, nav, nav, nav, acc_nav))
+                    INSERT INTO daily_quotes (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (fund_code, date_str, nav, nav, nav, nav, acc_nav))
                 inserted += 1
             
             conn.commit()
