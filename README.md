@@ -176,6 +176,17 @@ ETF_manager/
 
 ## 最近更新
 
+- **2026-03-09**：
+  - 完成全面代码审查，修复 24 个问题（Critical/Major/Minor）
+  - 修复 `DashboardSummary` 缺少 `pending_records` 字段、`HoldingDetail` 缺少盈亏字段
+  - 修复 `tables.py` `daily_quotes` 默认排序列名错误（`date` → `quote_date`）
+  - 修复 CORS 配置 `allow_credentials` 冲突、删除危险的 `reindex_holdings` 函数
+  - 补充 `trade_records`/`rules` 创建/更新时间戳
+  - 全局异常处理器不再向客户端暴露原始错误
+  - `get_holding` 单条查询现在也返回最新净值，与列表接口一致
+  - 后端架构重构：全面使用 SQLAlchemy ORM + Pydantic schemas
+  - `fetch_daily_quotes.py` 引入多线程并发拉取净值
+
 - **2026-03-07**：
   - 重构 `fund_holdings` 表，新增市值、盈亏、定投配置等字段，定投信息从独立表整合到持仓表。
   - 合并 `transactions`（交易流水）和 `trade_signals`（交易信号）为统一的 `trade_records` 表。
