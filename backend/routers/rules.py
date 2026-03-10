@@ -72,5 +72,6 @@ def toggle_rule(rule_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
         
     existing_rule.is_active = 0 if existing_rule.is_active == 1 else 1
+    existing_rule.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     db.commit()
     return {"message": "交易规则状态已切换"}

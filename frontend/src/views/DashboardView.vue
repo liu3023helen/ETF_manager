@@ -51,7 +51,7 @@ const summary = ref<any>({
 
 })
 const holdings = ref<any[]>([])
-const pendingCount = computed(() => summary.value.pending_records ?? summary.value.pending_signals ?? 0)
+const pendingCount = computed(() => summary.value.pending_records ?? 0)
 
 
 const categoryChartOption = computed(() => ({

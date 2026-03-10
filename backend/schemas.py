@@ -55,17 +55,17 @@ class HoldingDetail(BaseModel):
 
 
 class DailyQuote(BaseModel):
-    quote_id: Optional[int] = Field(default=None, alias="id")
+    quote_id: Optional[int] = None
     fund_code: str
     fund_name: Optional[str] = None
-    quote_date: str = Field(alias="date")
+    quote_date: str
     open_price: Optional[float] = None
     high_price: Optional[float] = None
     low_price: Optional[float] = None
-    close_price: Optional[float] = Field(default=None, alias="nav")
+    close_price: Optional[float] = None
     acc_nav: Optional[float] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TradingRule(BaseModel):

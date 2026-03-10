@@ -89,7 +89,7 @@
         class="w-full min-h-[120px] rounded-md border border-gray-200 p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
       />
       <div class="text-xs text-gray-400">
-        常用示例：<code>select * from fund_info;</code>、<code>desc fund_info;</code>
+        常用示例：<code>select * from daily_quotes;</code>、<code>desc daily_quotes;</code>
       </div>
 
 
@@ -212,9 +212,6 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   low_price: '最低净值',
   close_price: '收盘净值',
   acc_nav: '累计净值',
-  daily_change_pct: '日涨跌幅', // 保留，尽管新表没存，但如果是计算字段可能用到
-  daily_value: '日市值',
-  daily_pnl: '日盈亏',
 
   // trading_rules
   rule_id: '规则ID',

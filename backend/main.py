@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import traceback
 import logging
 
 from .routers import dashboard, funds, holdings, quotes, rules, trade_records, tables

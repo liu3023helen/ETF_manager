@@ -192,9 +192,11 @@ def create_record(
     except HTTPException:
         db.rollback()
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"记录创建失败: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error("创建交易记录失败", exc_info=True)
+        raise HTTPException(status_code=500, detail="记录创建失败")
 
 
 @router.patch("/{record_id}")
