@@ -38,11 +38,14 @@ def list_quotes(
     data = []
     for quote, fund_info in rows:
         item = {
-            "id": quote.quote_id,
+            "quote_id": quote.quote_id,
             "fund_code": quote.fund_code,
             "fund_name": fund_info.fund_name if fund_info else None,
-            "date": quote.quote_date,
-            "nav": quote.close_price,
+            "quote_date": quote.quote_date,
+            "open_price": quote.open_price,
+            "high_price": quote.high_price,
+            "low_price": quote.low_price,
+            "close_price": quote.close_price,
             "acc_nav": quote.acc_nav,
         }
         data.append(item)

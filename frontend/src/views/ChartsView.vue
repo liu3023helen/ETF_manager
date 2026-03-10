@@ -26,9 +26,9 @@
       <v-chart v-else :option="navChartOption" autoresize class="h-80" />
     </t-card>
 
-    <!-- 日盈亏 -->
-    <t-card title="每日盈亏" class="mb-4" :bordered="true">
-      <div v-if="quotes.length === 0" class="text-center text-gray-400 py-10">暂无数据</div>
+    <!-- 每日涨跌幅 -->
+    <t-card title="每日涨跌幅" class="mb-4" :bordered="true">
+      <div v-if="dailyChanges.length === 0" class="text-center text-gray-400 py-10">暂无数据</div>
       <v-chart v-else :option="pnlChartOption" autoresize class="h-64" />
     </t-card>
 
@@ -84,29 +84,56 @@ const navChartOption = computed(() => ({
   }],
 }))
 
+// 计算每日涨跌幅
+const dailyChanges = computed(() => {
+  const sorted = [...quotes.value]
+  const result: { date: string; change: number }[] = []
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1].close_price
+    const curr = sorted[i].close_price
+    if (prev && curr && prev > 0) {
+      const changePct = ((curr - prev) / prev) * 100
+      result.push({ date: sorted[i].quote_date, change: parseFloat(changePct.toFixed(2)) })
+    }
+  }
+  return result
+})
+
 const pnlChartOption = computed(() => ({
-  tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].name}<br/>盈亏: ¥${p[0].value}` },
+  tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].name}<br/>涨跌幅: ${p[0].value}%` },
   grid: { left: 60, right: 30, top: 20, bottom: 30 },
-  xAxis: { type: 'category', data: quotes.value.map(q => q.quote_date) },
-  yAxis: { type: 'value', name: '盈亏(元)' },
+  xAxis: { type: 'category', data: dailyChanges.value.map(d => d.date) },
+  yAxis: { type: 'value', name: '涨跌幅(%)' },
   series: [{
     type: 'bar',
-    data: quotes.value.map(q => ({
-      value: q.daily_pnl ?? 0,
-      itemStyle: { color: (q.daily_pnl ?? 0) >= 0 ? '#d54941' : '#2ba471' },
+    data: dailyChanges.value.map(d => ({
+      value: d.change,
+      itemStyle: { color: d.change >= 0 ? '#d54941' : '#2ba471' },
     })),
   }],
 }))
 
 // 净值明细表格列定义
-const quoteColumns = [
-  { colKey: 'quote_date', title: '日期', width: 120 },
-  { colKey: 'open_price', title: '开盘价', width: 100, align: 'right' },
-  { colKey: 'high_price', title: '最高价', width: 100, align: 'right' },
-  { colKey: 'low_price', title: '最低价', width: 100, align: 'right' },
-  { colKey: 'close_price', title: '收盘价', width: 100, align: 'right' },
-  { colKey: 'acc_nav', title: '累计净值', width: 100, align: 'right' },
-]
+const quoteColumns = computed(() => {
+  const cols: any[] = [
+    { colKey: 'quote_date', title: '日期', width: 120 },
+  ]
+  // 未选基金时显示基金信息列
+  if (!selectedFund.value) {
+    cols.push(
+      { colKey: 'fund_code', title: '基金代码', width: 100 },
+      { colKey: 'fund_name', title: '基金名称', width: 180 },
+    )
+  }
+  cols.push(
+    { colKey: 'open_price', title: '开盘价', width: 100, align: 'right' },
+    { colKey: 'high_price', title: '最高价', width: 100, align: 'right' },
+    { colKey: 'low_price', title: '最低价', width: 100, align: 'right' },
+    { colKey: 'close_price', title: '收盘价/净值', width: 110, align: 'right' },
+    { colKey: 'acc_nav', title: '累计净值', width: 100, align: 'right' },
+  )
+  return cols
+})
 
 onMounted(async () => {
   const res = await getFunds()
