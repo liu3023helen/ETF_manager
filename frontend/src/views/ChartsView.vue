@@ -27,9 +27,22 @@
     </t-card>
 
     <!-- 日盈亏 -->
-    <t-card title="每日盈亏" :bordered="true">
+    <t-card title="每日盈亏" class="mb-4" :bordered="true">
       <div v-if="quotes.length === 0" class="text-center text-gray-400 py-10">暂无数据</div>
       <v-chart v-else :option="pnlChartOption" autoresize class="h-64" />
+    </t-card>
+
+    <!-- 净值明细 -->
+    <t-card title="净值明细" :bordered="true">
+      <div v-if="quotes.length === 0" class="text-center text-gray-400 py-10">暂无净值明细数据</div>
+      <t-table
+        v-else
+        :data="quotes"
+        :columns="quoteColumns"
+        :pagination="{ pageSize: 10 }"
+        size="small"
+        stripe
+      />
     </t-card>
   </div>
 </template>
@@ -84,6 +97,16 @@ const pnlChartOption = computed(() => ({
     })),
   }],
 }))
+
+// 净值明细表格列定义
+const quoteColumns = [
+  { colKey: 'quote_date', title: '日期', width: 120 },
+  { colKey: 'open_price', title: '开盘价', width: 100, align: 'right' },
+  { colKey: 'high_price', title: '最高价', width: 100, align: 'right' },
+  { colKey: 'low_price', title: '最低价', width: 100, align: 'right' },
+  { colKey: 'close_price', title: '收盘价', width: 100, align: 'right' },
+  { colKey: 'acc_nav', title: '累计净值', width: 100, align: 'right' },
+]
 
 onMounted(async () => {
   const res = await getFunds()
