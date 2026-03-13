@@ -193,10 +193,11 @@ def fetch_fund_nav_sina(fund_code: str) -> Optional[dict]:
 def save_quote(conn: sqlite3.Connection, fund_code: str, fund_name: str, data: dict):
     """保存净值数据到数据库 (新表结构)"""
     try:
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conn.execute("""
             INSERT OR REPLACE INTO daily_quotes 
-            (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             fund_code,
             data['quote_date'],
@@ -204,7 +205,8 @@ def save_quote(conn: sqlite3.Connection, fund_code: str, fund_name: str, data: d
             data['high_price'],
             data['low_price'],
             data['close_price'],
-            data['acc_nav']
+            data['acc_nav'],
+            created_at
         ))
         conn.commit()
         
@@ -309,62 +311,95 @@ def fetch_all_quotes(force_update: bool = False):
         conn.close()
 
 
-def fetch_history_quotes(fund_code: str, days: int = 60):
+def fetch_history_quotes(fund_code: str, days: int = 60, start_date: str = None, end_date: str = None):
     """
     获取某只基金的历史净值（使用天天基金接口）
+    支持分页获取大量数据
     """
-    logger.info(f"获取 [{fund_code}] 近 {days} 天历史数据...")
     import urllib.request
     import json
+    import time
     
+    # 如果指定了日期范围，优先使用日期范围
+    if start_date and end_date:
+        logger.info(f"获取 [{fund_code}] {start_date} 至 {end_date} 历史数据...")
+    else:
+        logger.info(f"获取 [{fund_code}] 近 {days} 天历史数据...")
+    
+    conn = get_db_connection()
     try:
-        # 天天基金历史净值接口
-        url = f"http://api.fund.eastmoney.com/f10/lsjz?fundCode={fund_code}&pageIndex=1&pageSize={days}&startDate=&endDate="
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0',
-            'Referer': 'http://fundf10.eastmoney.com/'
-        }
+        # 获取基金名称
+        cursor = conn.execute("SELECT fund_name FROM fund_info WHERE fund_code = ?", (fund_code,))
+        row = cursor.fetchone()
+        fund_name = row['fund_name'] if row else ''
         
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            
-        if data['ErrCode'] != 0 or not data['Data']['LSJZList']:
-            logger.warning(f"[{fund_code}] 历史数据获取为空")
-            return
-
-        conn = get_db_connection()
-        try:
-            # 获取基金名称
-            cursor = conn.execute("SELECT fund_name FROM fund_info WHERE fund_code = ?", (fund_code,))
-            row = cursor.fetchone()
-            fund_name = row['fund_name'] if row else ''
-
-            inserted = 0
-            for item in data['Data']['LSJZList']:
-                date_str = item['FSRQ'] # 净值日期
-                nav = float(item['DWJZ']) if item['DWJZ'] else 0 # 单位净值
-                acc_nav = float(item['LJJZ']) if item['LJJZ'] else nav # 累计净值
-                change_pct = float(item['JZZZL']) if item['JZZZL'] else 0 # 日增长率
+        total_inserted = 0
+        page_index = 1
+        page_size = 20  # 天天基金每页最大20条
+        
+        while True:
+            try:
+                # 构建URL
+                if start_date and end_date:
+                    url = f"http://api.fund.eastmoney.com/f10/lsjz?fundCode={fund_code}&pageIndex={page_index}&pageSize={page_size}&startDate={start_date}&endDate={end_date}"
+                else:
+                    url = f"http://api.fund.eastmoney.com/f10/lsjz?fundCode={fund_code}&pageIndex={page_index}&pageSize={page_size}&startDate=&endDate="
                 
-                if get_existing_quotes(conn, fund_code, date_str):
-                    continue
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0',
+                    'Referer': 'http://fundf10.eastmoney.com/'
+                }
                 
-                # 历史数据只有单一净值，没有 OHLC
-                conn.execute("""
-                    INSERT INTO daily_quotes (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (fund_code, date_str, nav, nav, nav, nav, acc_nav))
-                inserted += 1
-            
-            conn.commit()
-            logger.info(f"✓ [{fund_code}] 插入 {inserted} 条历史数据")
-            
-        finally:
-            conn.close()
-
-    except Exception as e:
-        logger.error(f"[{fund_code}] 获取历史数据失败: {e}")
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                
+                if data['ErrCode'] != 0:
+                    logger.warning(f"[{fund_code}] 接口返回错误: {data.get('ErrMsg', 'Unknown')}")
+                    break
+                
+                lsjz_list = data['Data']['LSJZList']
+                if not lsjz_list:
+                    break  # 没有更多数据了
+                
+                inserted = 0
+                for item in lsjz_list:
+                    date_str = item['FSRQ']  # 净值日期
+                    nav = float(item['DWJZ']) if item['DWJZ'] else 0  # 单位净值
+                    acc_nav = float(item['LJJZ']) if item['LJJZ'] else nav  # 累计净值
+                    
+                    if nav <= 0:
+                        continue
+                    
+                    if get_existing_quotes(conn, fund_code, date_str):
+                        continue
+                    
+                    # 历史数据只有单一净值，没有 OHLC
+                    created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    conn.execute("""
+                        INSERT INTO daily_quotes (fund_code, quote_date, open_price, high_price, low_price, close_price, acc_nav, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (fund_code, date_str, nav, nav, nav, nav, acc_nav, created_at))
+                    inserted += 1
+                
+                conn.commit()
+                total_inserted += inserted
+                
+                # 如果这页数据少于page_size，说明是最后一页
+                if len(lsjz_list) < page_size:
+                    break
+                
+                page_index += 1
+                time.sleep(0.3)  # 避免请求过快
+                
+            except Exception as e:
+                logger.error(f"[{fund_code}] 第{page_index}页获取失败: {e}")
+                break
+        
+        logger.info(f"✓ [{fund_code}] {fund_name} - 共插入 {total_inserted} 条历史数据")
+        
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

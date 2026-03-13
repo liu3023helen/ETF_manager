@@ -7,7 +7,7 @@ from .routers import dashboard, funds, holdings, quotes, rules, trade_records, t
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ETF管理系统", version="1.0.0")
+app = FastAPI(title="ETF管理系统", version="1.0.1")
 
 app.add_middleware(
     CORSMiddleware,

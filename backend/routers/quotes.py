@@ -12,7 +12,7 @@ def list_quotes(
     date_from: str = None,
     date_to: str = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(100, ge=1, le=1000),
+    page_size: int = Query(100, ge=1, le=10000),
     db: Session = Depends(get_db),
 ):
     query = db.query(DailyQuote, FundInfo).outerjoin(
@@ -20,7 +20,12 @@ def list_quotes(
     )
     
     if fund_code:
-        query = query.filter(DailyQuote.fund_code == fund_code)
+        # 支持逗号分隔的多基金查询
+        codes = [c.strip() for c in fund_code.split(",") if c.strip()]
+        if len(codes) == 1:
+            query = query.filter(DailyQuote.fund_code == codes[0])
+        else:
+            query = query.filter(DailyQuote.fund_code.in_(codes))
     if date_from:
         query = query.filter(DailyQuote.quote_date >= date_from)
     if date_to:

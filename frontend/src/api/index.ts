@@ -3,7 +3,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 30000,
 })
 
 // 响应拦截器：统一错误处理
