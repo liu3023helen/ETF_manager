@@ -5,7 +5,7 @@ from datetime import datetime
 from ..database import get_db
 from ..models import TradeRecord, FundHolding, FundInfo
 from ..schemas import TradeRecordCreate
-from ..services.holding_service import apply_transaction
+from ..services.holding_service import apply_transaction, rebuild_holding
 
 router = APIRouter(prefix="/api/trade-records", tags=["trade_records"])
 
@@ -205,7 +205,7 @@ def update_record(
     payload: dict,
     db: Session = Depends(get_db),
 ):
-    """更新交易记录（部分字段）"""
+    """更新交易记录（部分字段），修改关键字段时联动重算持仓"""
     record = db.query(TradeRecord).filter(TradeRecord.record_id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
@@ -216,14 +216,37 @@ def update_record(
         "amount", "shares", "nav", "fee", "note",
     }
 
+    # 判断是否需要重算持仓的关键字段
+    holding_fields = {"amount", "shares", "nav", "exec_status"}
+
+    # 记录修改前的状态（用于判断是否需要重算）
+    old_exec_status = record.exec_status
+    old_fund_code = record.fund_code
+    old_platform = record.platform
+    need_rebuild = False
+
     updated = False
     for key, val in payload.items():
         if key in allowed_fields:
+            old_val = getattr(record, key, None)
             setattr(record, key, val)
             updated = True
+            # 如果修改了影响持仓的关键字段，标记需要重算
+            if key in holding_fields and old_val != val:
+                need_rebuild = True
 
     if not updated:
         raise HTTPException(status_code=400, detail="没有可更新的字段")
+
+    # 如果交易类型是实际交易且修改了关键字段，联动重算持仓
+    if need_rebuild and record.record_type in ("买入", "卖出", "定投"):
+        # 不管修改前后，只要涉及持仓相关字段就重算
+        if old_platform:
+            try:
+                rebuild_holding(db, old_fund_code, old_platform)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).error("重算持仓失败", exc_info=True)
 
     db.commit()
     return {"message": "记录已更新"}
@@ -231,11 +254,26 @@ def update_record(
 
 @router.delete("/{record_id}")
 def delete_record(record_id: int, db: Session = Depends(get_db)):
-    """删除交易记录"""
+    """删除交易记录，如果是已执行的实际交易则联动重算持仓"""
     record = db.query(TradeRecord).filter(TradeRecord.record_id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
-        
+
+    # 记住删除前的信息，用于后续重算
+    fund_code = record.fund_code
+    platform = record.platform
+    record_type = record.record_type
+    exec_status = record.exec_status
+
     db.delete(record)
+
+    # 如果是已执行的实际交易，联动重算持仓
+    if exec_status == '已执行' and record_type in ("买入", "卖出", "定投") and platform:
+        try:
+            rebuild_holding(db, fund_code, platform)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).error("删除交易后重算持仓失败", exc_info=True)
+
     db.commit()
     return {"message": "记录已删除"}
