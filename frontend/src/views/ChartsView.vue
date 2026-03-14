@@ -204,16 +204,23 @@ const navChartOption = computed(() => {
       },
     },
     legend: {
-      show: fundCount.value > 1,
-      top: 0,
+      show: true,
+      top: 4,
+      right: 10,
       type: 'scroll',
     },
-    grid: { left: 60, right: 30, top: fundCount.value > 1 ? 40 : 20, bottom: 60 },
+    grid: { left: 80, right: 40, top: 40, bottom: 60 },
     xAxis: { type: 'category', data: dates, boundaryGap: false },
     yAxis: {
       type: 'value',
       name: normalizeMode.value ? '归一化值' : '净值/点位',
       scale: true,
+      axisLabel: {
+        formatter: (value: number) => {
+          if (value >= 10000) return (value / 10000).toFixed(1) + 'w'
+          return value.toFixed(2)
+        },
+      },
     },
     dataZoom: [{ type: 'inside' }, { type: 'slider' }],
     series,
@@ -291,13 +298,18 @@ const pnlChartOption = computed(() => {
       },
     },
     legend: {
-      show: fundCount.value > 1,
-      top: 0,
+      show: true,
+      top: 4,
+      right: 10,
       type: 'scroll',
     },
-    grid: { left: 60, right: 30, top: fundCount.value > 1 ? 40 : 20, bottom: 60 },
+    grid: { left: 70, right: 40, top: 40, bottom: 60 },
     xAxis: { type: 'category', data: dates },
-    yAxis: { type: 'value', name: '涨跌幅(%)' },
+    yAxis: {
+      type: 'value',
+      name: '涨跌幅(%)',
+      axisLabel: { formatter: '{value}%' },
+    },
     dataZoom: [
       { type: 'inside', xAxisIndex: 0 },
       { type: 'slider', xAxisIndex: 0, bottom: 10, height: 20 },

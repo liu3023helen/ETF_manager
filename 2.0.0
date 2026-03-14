@@ -1,0 +1,7 @@
+Collecting SQLAlchemy
+  Downloading sqlalchemy-2.0.48-cp310-cp310-win_amd64.whl (2.1 MB)
+Requirement already satisfied: typing-extensions>=4.6.0 in e:\lxy_learn\etf_manager\venv\lib\site-packages (from SQLAlchemy) (4.15.0)
+Collecting greenlet>=1
+  Downloading greenlet-3.3.2-cp310-cp310-win_amd64.whl (230 kB)
+Installing collected packages: greenlet, SQLAlchemy
+Successfully installed SQLAlchemy-2.0.48 greenlet-3.3.2

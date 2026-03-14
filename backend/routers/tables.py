@@ -25,7 +25,7 @@ TABLE_NAME_MAP = {}
 DEFAULT_SORT = {
     "fund_info": "fund_code ASC",
     "fund_holdings": "fund_code ASC",
-    "daily_quotes": "quote_date ASC, fund_code ASC",
+    "daily_quotes": "quote_date DESC, fund_code ASC",
     "trading_rules": "fund_category ASC, rule_type ASC, priority ASC, rule_id ASC",
     "trade_records": "record_date DESC, record_id DESC",
 }

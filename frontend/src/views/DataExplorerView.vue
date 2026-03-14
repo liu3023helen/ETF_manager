@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-5">
     <!-- 表选择卡片 -->
-    <div class="flex gap-3 h-28">
+    <div class="flex gap-3 flex-wrap">
       <div
         v-for="table in tables"
         :key="table.name"
         @click="selectTable(table.name)"
         :class="[
-          'w-40 rounded-lg p-4 cursor-pointer transition-all duration-200 border-2 flex-shrink-0',
+          'flex-1 min-w-[140px] max-w-[220px] rounded-lg p-4 cursor-pointer transition-all duration-200 border-2',
           activeTable === table.name
             ? 'border-blue-500 bg-blue-50 shadow-md'
             : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm',
@@ -328,8 +328,21 @@ async function fetchData() {
 
   // 动态生成列配置，排除不需要显示的列
   const HIDDEN_COLUMNS = ['quote_id'] // 隐藏主键列
-  tableColumns.value = res.data.columns
+  const TAIL_COLUMNS = ['top_holdings', 'risk_points'] // 这些字段移到最后
+
+  // 对列排序：普通列在前，TAIL_COLUMNS 按定义顺序排在最后
+  const sortedColumns = res.data.columns
     .filter((col: string) => !HIDDEN_COLUMNS.includes(col))
+    .sort((a: string, b: string) => {
+      const aIdx = TAIL_COLUMNS.indexOf(a)
+      const bIdx = TAIL_COLUMNS.indexOf(b)
+      if (aIdx === -1 && bIdx === -1) return 0  // 都不是尾部列，保持原顺序
+      if (aIdx === -1) return -1  // a不是尾部列，排前面
+      if (bIdx === -1) return 1   // b不是尾部列，排前面
+      return aIdx - bIdx          // 两个都是尾部列，按定义顺序
+    })
+
+  tableColumns.value = sortedColumns
     .map((col: string) => {
       const config: any = {
         colKey: col,
