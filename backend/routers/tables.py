@@ -15,10 +15,8 @@ ALLOWED_TABLES = {
     "daily_quotes": "每日净值",
     "trading_rules": "交易规则",
     "trade_records": "交易记录",
+    "portfolio_snapshots": "资产快照",
 }
-
-# 展示名 -> 真实物理表名 映射
-TABLE_NAME_MAP = {}
 
 
 # 每个表的默认排序规则（按展示名配置）
@@ -28,6 +26,7 @@ DEFAULT_SORT = {
     "daily_quotes": "quote_date DESC, fund_code ASC",
     "trading_rules": "fund_category ASC, rule_type ASC, priority ASC, rule_id ASC",
     "trade_records": "record_date DESC, record_id DESC",
+    "portfolio_snapshots": "snapshot_date DESC",
 }
 
 
@@ -50,8 +49,8 @@ FORBIDDEN_SQL_KEYWORDS = {
 
 
 def resolve_physical_table(display_table_name: str, conn: Optional[sqlite3.Connection] = None) -> str:
-    """将前端展示表名解析为数据库真实表名。"""
-    return TABLE_NAME_MAP.get(display_table_name, display_table_name)
+    """将前端展示表名解析为数据库真实表名。当前展示名即物理表名。"""
+    return display_table_name
 
 
 
@@ -90,10 +89,8 @@ def normalize_sql(sql: str) -> str:
 
 
 
-
 @router.get("")
 def list_tables(conn: sqlite3.Connection = Depends(get_raw_db)):
-
     """获取所有可查看的表及其记录数
 
     注意：有些表在白名单中但可能尚未创建（例如尚未启用的功能模块），
@@ -146,10 +143,7 @@ def execute_sql(
         display_table_name = sanitize_identifier(desc_match.group(1))
         physical_table_name = resolve_physical_table(display_table_name)
 
-        if (
-            display_table_name not in ALLOWED_TABLES
-            and physical_table_name not in TABLE_NAME_MAP.values()
-        ):
+        if display_table_name not in ALLOWED_TABLES:
             raise HTTPException(status_code=400, detail=f"不允许访问表: {display_table_name}")
 
         if not table_exists(conn, physical_table_name):
@@ -186,12 +180,8 @@ def execute_sql(
         physical_table_name = resolve_physical_table(safe_table_name, conn)
 
 
-        # 允许使用展示名（fund_holdings）或物理名（my_holdings）
-        if safe_table_name in ALLOWED_TABLES:
-            pass
-        elif physical_table_name in ALLOWED_TABLES or safe_table_name in TABLE_NAME_MAP.values():
-            pass
-        else:
+        # 允许使用展示名中的表
+        if safe_table_name not in ALLOWED_TABLES:
             raise HTTPException(status_code=400, detail=f"不允许访问表: {safe_table_name}")
 
         if not table_exists(conn, physical_table_name):
@@ -233,7 +223,7 @@ def get_table_data(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
     sort_by: Optional[str] = None,
-    sort_order: Optional[str] = Query(None, regex="^(asc|desc)$"),
+    sort_order: Optional[str] = Query(None, pattern="^(asc|desc)$"),
     conn: sqlite3.Connection = Depends(get_raw_db),
 ):
     """获取指定表的数据（分页）"""

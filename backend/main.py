@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from .routers import dashboard, funds, holdings, quotes, rules, trade_records, tables
+from .routers import dashboard, funds, holdings, quotes, rules, trade_records, tables, snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ app.include_router(quotes.router)
 app.include_router(rules.router)
 app.include_router(trade_records.router)
 app.include_router(tables.router)
+app.include_router(snapshots.router)
 
 
 @app.get("/")

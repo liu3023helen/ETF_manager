@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+import logging
 from ..database import get_db
 from ..models import TradeRecord, FundHolding, FundInfo
 from ..schemas import TradeRecordCreate
 from ..services.holding_service import apply_transaction, rebuild_holding
 
 router = APIRouter(prefix="/api/trade-records", tags=["trade_records"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.get("")
@@ -194,8 +197,7 @@ def create_record(
         raise
     except Exception:
         db.rollback()
-        import logging
-        logging.getLogger(__name__).error("创建交易记录失败", exc_info=True)
+        logger.error("创建交易记录失败", exc_info=True)
         raise HTTPException(status_code=500, detail="记录创建失败")
 
 
@@ -245,8 +247,7 @@ def update_record(
             try:
                 rebuild_holding(db, old_fund_code, old_platform)
             except Exception:
-                import logging
-                logging.getLogger(__name__).error("重算持仓失败", exc_info=True)
+                logger.error("重算持仓失败", exc_info=True)
 
     db.commit()
     return {"message": "记录已更新"}
@@ -272,8 +273,7 @@ def delete_record(record_id: int, db: Session = Depends(get_db)):
         try:
             rebuild_holding(db, fund_code, platform)
         except Exception:
-            import logging
-            logging.getLogger(__name__).error("删除交易后重算持仓失败", exc_info=True)
+            logger.error("删除交易后重算持仓失败", exc_info=True)
 
     db.commit()
     return {"message": "记录已删除"}

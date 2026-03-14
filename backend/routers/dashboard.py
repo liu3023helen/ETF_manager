@@ -1,31 +1,17 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from ..database import get_db
-from ..models import FundHolding, FundInfo, TradeRecord, DailyQuote
+from ..models import FundHolding, FundInfo, TradeRecord
 from ..schemas import DashboardSummary
+from ..services.query_helpers import latest_quotes_subquery
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
-
-
-def _latest_quotes_subquery(db: Session):
-    """构建获取每个基金最新净值的子查询（与 holdings.py 一致）"""
-    subq = db.query(
-        DailyQuote.fund_code,
-        func.max(DailyQuote.quote_date).label('max_date')
-    ).group_by(DailyQuote.fund_code).subquery()
-
-    return db.query(DailyQuote).join(
-        subq,
-        (DailyQuote.fund_code == subq.c.fund_code) &
-        (DailyQuote.quote_date == subq.c.max_date)
-    ).subquery()
 
 
 @router.get("/summary", response_model=DashboardSummary)
 def get_summary(db: Session = Depends(get_db)):
     """获取仪表盘汇总数据（使用最新净值实时计算）"""
-    latest_quotes = _latest_quotes_subquery(db)
+    latest_quotes = latest_quotes_subquery(db)
 
     # 查询所有持仓，JOIN 最新净值
     rows = db.query(

@@ -347,7 +347,7 @@ watch([navChartRef, pnlChartRef], ([nav, pnl]) => {
       const navChart = navChartRef.value?.chart
       const pnlChart = pnlChartRef.value?.chart
       if (navChart && pnlChart) {
-        echarts.connect('fundCharts')
+        connect('fundCharts')
       }
     })
   }

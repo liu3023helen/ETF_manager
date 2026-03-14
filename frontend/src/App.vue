@@ -16,6 +16,10 @@
         </t-menu-item>
         <t-menu-item value="/charts">
           <template #icon><ChartLineIcon /></template>
+          净值走势
+        </t-menu-item>
+        <t-menu-item value="/profit">
+          <template #icon><ChartBubbleIcon /></template>
           收益曲线
         </t-menu-item>
 
@@ -50,6 +54,7 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardIcon,
   ChartLineIcon,
+  ChartBubbleIcon,
   SettingIcon,
   ListIcon,
   DataBaseIcon,

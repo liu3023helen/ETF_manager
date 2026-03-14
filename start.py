@@ -7,7 +7,6 @@ import subprocess
 import os
 import socket
 import sys
-import signal
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VENV_PYTHON = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")

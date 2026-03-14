@@ -4,7 +4,7 @@
 """
 from sqlalchemy.orm import Session
 from datetime import datetime
-from ..models import FundHolding, FundInfo, TradeRecord
+from ..models import FundHolding, TradeRecord
 
 
 def get_holding(db: Session, fund_code: str, platform: str):

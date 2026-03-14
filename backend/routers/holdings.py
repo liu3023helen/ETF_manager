@@ -1,26 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List
 from ..database import get_db
-from ..models import FundHolding, FundInfo, DailyQuote
+from ..models import FundHolding, FundInfo
 from ..schemas import HoldingDetail
+from ..services.query_helpers import latest_quotes_subquery
 
 router = APIRouter(prefix="/api/holdings", tags=["holdings"])
-
-
-def _latest_quotes_subquery(db: Session):
-    """构建获取每个基金最新净值的子查询"""
-    subq = db.query(
-        DailyQuote.fund_code,
-        func.max(DailyQuote.quote_date).label('max_date')
-    ).group_by(DailyQuote.fund_code).subquery()
-
-    return db.query(DailyQuote).join(
-        subq,
-        (DailyQuote.fund_code == subq.c.fund_code) &
-        (DailyQuote.quote_date == subq.c.max_date)
-    ).subquery()
 
 
 def _build_holding_item(holding: FundHolding, fund_info: FundInfo,
@@ -87,7 +73,7 @@ def _build_holding_item(holding: FundHolding, fund_info: FundInfo,
 
 @router.get("", response_model=List[HoldingDetail])
 def list_holdings(platform: str = None, db: Session = Depends(get_db)):
-    latest_quotes = _latest_quotes_subquery(db)
+    latest_quotes = latest_quotes_subquery(db)
 
     query = db.query(
         FundHolding,

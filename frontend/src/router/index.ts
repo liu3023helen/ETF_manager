@@ -17,6 +17,12 @@ const router = createRouter({
       path: '/charts',
       name: 'Charts',
       component: () => import('../views/ChartsView.vue'),
+      meta: { title: '净值走势' },
+    },
+    {
+      path: '/profit',
+      name: 'Profit',
+      component: () => import('../views/ProfitView.vue'),
       meta: { title: '收益曲线' },
     },
 

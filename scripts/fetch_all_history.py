@@ -4,7 +4,6 @@
 
 import sys
 import os
-import sqlite3
 import logging
 
 # 添加项目根目录到路径

@@ -72,4 +72,10 @@ export const getTableData = (tableName: string, params?: {
 export const executeTableSql = (sql: string) =>
   api.post('/tables/execute-sql', { sql })
 
+// Snapshots (资产快照)
+export const getSnapshots = (params?: { date_from?: string; date_to?: string }) =>
+  api.get('/snapshots', { params })
+export const getSnapshotSummary = () =>
+  api.get('/snapshots/summary')
+
 
