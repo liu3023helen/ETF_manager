@@ -29,6 +29,8 @@ def _build_holding_item(holding: FundHolding, fund_info: FundInfo,
     shares = holding.holding_shares or 0
     base_shares = holding.base_shares or 0
     total_invested = holding.invested_capital or 0
+    total_sold = holding.total_sold or 0
+    net_invested = holding.net_invested or 0
 
     item = {
         "holding_id": holding.holding_id,
@@ -41,6 +43,8 @@ def _build_holding_item(holding: FundHolding, fund_info: FundInfo,
         "base_shares": base_shares,
         "tradable_shares": round(shares - base_shares, 2),
         "total_invested": total_invested,
+        "total_sold": total_sold,
+        "net_invested": net_invested,
         "first_buy_date": holding.first_buy_date,
         "updated_at": holding.updated_at,
         "risk_level": fund_info.risk_level if fund_info else None,
@@ -54,24 +58,28 @@ def _build_holding_item(holding: FundHolding, fund_info: FundInfo,
     }
 
     # 计算市值与盈亏，优先级：最新净值 > DB 存值 > 成本价估算
+    # 盈亏基于持有成本 = 份额 × 成本价
+    cost_price = holding.avg_buy_price or 0
+    cost_value = round(shares * cost_price, 2)
+
     if latest_nav and latest_nav > 0:
         current_value = round(shares * latest_nav, 2)
         item["holding_value"] = current_value
         item["current_price"] = latest_nav
-        item["profit_loss_amount"] = round(current_value - total_invested, 2)
-        item["return_rate"] = round((current_value - total_invested) / total_invested * 100, 2) if total_invested > 0 else 0
+        item["profit_loss_amount"] = round(current_value - cost_value, 2)
+        item["return_rate"] = round((current_value - cost_value) / cost_value * 100, 2) if cost_value > 0 else 0
     elif holding.holding_value and holding.holding_value > 0:
         current_value = holding.holding_value
         item["holding_value"] = current_value
         item["current_price"] = holding.current_price
-        item["profit_loss_amount"] = holding.profit_loss_amount
-        item["return_rate"] = holding.return_rate
+        item["profit_loss_amount"] = round(current_value - cost_value, 2)
+        item["return_rate"] = round((current_value - cost_value) / cost_value * 100, 2) if cost_value > 0 else 0
     else:
-        current_value = round(shares * (holding.avg_buy_price or 0), 2)
+        current_value = cost_value
         item["holding_value"] = current_value
         item["current_price"] = holding.current_price
-        item["profit_loss_amount"] = holding.profit_loss_amount
-        item["return_rate"] = holding.return_rate
+        item["profit_loss_amount"] = 0
+        item["return_rate"] = 0
 
     item["current_value"] = current_value
     return item

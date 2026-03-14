@@ -32,11 +32,13 @@ class HoldingDetail(BaseModel):
     base_shares: float = 0
     tradable_shares: float = 0  # Assuming it's calculated
     invested_capital: float = Field(default=0, alias="total_invested")
+    total_sold: float = Field(default=0)       # 累计卖出总金额
+    net_invested: float = Field(default=0)     # 净投入 = 累计买入 - 累计卖出
     first_buy_date: Optional[str] = None
     updated_at: Optional[str] = None
     current_value: float = Field(default=0)  # Calculated or from DB
     current_price: Optional[float] = Field(default=None, alias="latest_nav")
-    last_update_date: Optional[str] = Field(default=None, alias="nav_date")
+    nav_date: Optional[str] = Field(default=None)
     risk_level: Optional[str] = None
     
     # 盈亏相关
@@ -137,7 +139,9 @@ class TradeRecordCreate(BaseModel):
 
 class DashboardSummary(BaseModel):
     total_assets: float = 0
-    total_invested: float = 0
+    total_invested: float = 0       # 累计买入总金额
+    total_sold: float = 0           # 累计卖出总金额
+    net_invested: float = 0         # 净投入
     total_pnl: float = 0
     pnl_rate: float = 0
     fund_count: int = 0
