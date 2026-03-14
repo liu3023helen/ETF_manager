@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
 
 class FundInfo(Base):
     __tablename__ = "fund_info"
@@ -30,16 +31,21 @@ class FundInfo(Base):
 
 class FundHolding(Base):
     __tablename__ = "fund_holdings"
+    __table_args__ = (
+        UniqueConstraint('fund_code', 'platform', name='uq_holdings_fund_platform'),
+    )
 
     holding_id = Column(Integer, primary_key=True, autoincrement=True)
     fund_code = Column(String, ForeignKey("fund_info.fund_code"), nullable=False, index=True)
-    platform = Column(String, nullable=True)
+    platform = Column(String, nullable=False)
     holding_shares = Column(Float, nullable=True)
     avg_buy_price = Column(Float, nullable=True)
     base_shares = Column(Float, nullable=True)
     current_price = Column(Float, nullable=True)
     holding_value = Column(Float, nullable=True)
-    invested_capital = Column(Float, nullable=True)
+    invested_capital = Column(Float, nullable=True)       # 累计买入总金额（只增不减）
+    total_sold = Column(Float, nullable=True, default=0)  # 累计卖出总金额（只增不减）
+    net_invested = Column(Float, nullable=True, default=0) # 净投入 = invested_capital - total_sold
     profit_loss_amount = Column(Float, nullable=True)
     return_rate = Column(Float, nullable=True)
     
@@ -50,7 +56,6 @@ class FundHolding(Base):
     dca_total_invested = Column(Float, nullable=True)
     
     first_buy_date = Column(String, nullable=True)
-    last_update_date = Column(String, nullable=True)
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
 
@@ -119,3 +124,18 @@ class TradingRule(Base):
     is_active = Column(Integer, index=True, default=1)
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
+
+
+class PortfolioSnapshot(Base):
+    """每日资产快照：记录每天的总资产、收益等汇总数据"""
+    __tablename__ = "portfolio_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    snapshot_date = Column(String, nullable=False, unique=True)
+    total_assets = Column(Float, default=0)          # 当日总市值
+    total_invested = Column(Float, default=0)         # 当日累计总投入
+    total_pnl = Column(Float, default=0)              # 当日浮动盈亏
+    pnl_rate = Column(Float, default=0)               # 当日收益率(%)
+    realized_pnl = Column(Float, default=0)           # 累计已实现收益
+    fund_count = Column(Integer, default=0)           # 持仓基金数
+    created_at = Column(String, nullable=True)
