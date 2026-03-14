@@ -147,11 +147,17 @@ const FIELD_UNIT_MAP: Record<string, string> = {
   current_price: '元',
   holding_value: '元',
   invested_capital: '元',
+  total_sold: '元',
+  net_invested: '元',
   profit_loss_amount: '元',
   dca_amount: '元',
   dca_total_invested: '元',
   amount: '元',
   fee: '元',
+  total_assets: '元',
+  total_invested: '元',
+  total_pnl: '元',
+  realized_pnl: '元',
 }
 
 
@@ -193,7 +199,9 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   base_shares: '底仓份额',
   current_price: '当前净值/价格',
   holding_value: '持仓市值',
-  invested_capital: '累计投入金额',
+  invested_capital: '累计买入金额',
+  total_sold: '累计卖出金额',
+  net_invested: '净投入金额',
   profit_loss_amount: '持仓盈亏金额',
   return_rate: '收益率(%)',
   dca_is_active: '定投启用',
@@ -202,7 +210,6 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   dca_type: '定投类型',
   dca_total_invested: '定投累计金额',
   first_buy_date: '首次买入日期',
-  last_update_date: '最后更新日期',
 
   // daily_quotes
   quote_id: '记录ID',
@@ -236,6 +243,15 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   amount: '金额',
   shares: '份额',
   fee: '手续费',
+
+  // portfolio_snapshots
+  snapshot_date: '快照日期',
+  total_assets: '总资产',
+  total_invested: '累计投入',
+  total_pnl: '浮动盈亏',
+  pnl_rate: '收益率(%)',
+  realized_pnl: '已实现收益',
+  fund_count: '持仓基金数',
 }
 
 // 每个表的默认排序配置（与后端 DEFAULT_SORT 对应）
@@ -245,6 +261,7 @@ const DEFAULT_SORT_MAP: Record<string, { sortBy: string; descending: boolean }> 
   daily_quotes: { sortBy: 'quote_date', descending: true },
   trading_rules: { sortBy: 'fund_category', descending: false },
   trade_records: { sortBy: 'record_date', descending: true },
+  portfolio_snapshots: { sortBy: 'snapshot_date', descending: true },
 }
 
 

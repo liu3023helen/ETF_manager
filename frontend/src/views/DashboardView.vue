@@ -1,9 +1,11 @@
 <template>
   <div>
     <!-- 核心指标 -->
-    <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
       <StatCard label="总资产" :value="'¥' + formatNum(summary.total_assets)" value-class="text-blue-700" />
-      <StatCard label="总投入" :value="'¥' + formatNum(summary.total_invested)" value-class="text-gray-700" />
+      <StatCard label="累计买入" :value="'¥' + formatNum(summary.total_invested)" value-class="text-gray-700" />
+      <StatCard label="累计卖出" :value="'¥' + formatNum(summary.total_sold)" value-class="text-gray-700" />
+      <StatCard label="净投入" :value="'¥' + formatNum(summary.net_invested)" value-class="text-gray-700" />
       <StatCard
         label="总收益"
         :value-class="summary.total_pnl >= 0 ? 'text-red-500' : 'text-green-600'"
@@ -72,7 +74,8 @@ import StatCard from '@/components/StatCard.vue'
 import { getDashboardSummary, getHoldings } from '../api'
 
 const summary = ref<any>({
-  total_assets: 0, total_invested: 0, total_pnl: 0, pnl_rate: 0,
+  total_assets: 0, total_invested: 0, total_sold: 0, net_invested: 0,
+  total_pnl: 0, pnl_rate: 0,
   fund_count: 0, category_distribution: [], platform_distribution: [], pending_records: 0,
 })
 const holdings = ref<any[]>([])
