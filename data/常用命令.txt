@@ -1,10 +1,29 @@
 
+git add .
+
+git commit -m "fix file"
+
+git push origin main
+
+To https://github.com/liu3023helen/ETF_manager.git
+
+
+这个命令一键关闭所有 Python 和 Node 进程（慎用，会关掉所有相关程序）：
+taskkill /F /IM python.exe /IM node.exe 2>$null
 
 
 
+select t2.fund_name,t1.*
+from daily_quotes t1 
+join fund_info t2
+on t1.fund_code = t2.fund_code 
+order by quote_date desc
+;
 
 
-
-
-
-​ 这个-shm -wal的后缀是什么意思
+python scripts/fetch_all_history.py	获取近60天（默认）
+python scripts/fetch_all_history.py --days 90	获取近90天
+python scripts/fetch_all_history.py --start-date 2025-06-01 --end-date 2025-06-30	获取2025年6月
+ 
+python scripts/fetch_daily_quotes.py --history 002183 --days 60
+python scripts/fetch_daily_quotes.py --force
